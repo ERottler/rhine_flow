@@ -13,25 +13,21 @@ pacman::p_load(shiny, leaflet, sp, raster, viridis, shinythemes,
                alptempr, htmltools, zoo)
 
 
-base_dir <- "u:/RhineFlow/rhine_obs/"
+base_dir <- "u:/RhineFlow/rhine_obs/R/rhine_flow/rhine_obs_app/"
 bg_color <- "gray90"
-#Load basin boundaries (shapefile delineated beforehand using Q-GIS)
-sh_gauges_basins_path <- paste0("e:/rhine_spacial/guages_basins.shp")
-sh_gauges_river_path <- paste0("e:/rhine_spacial/gauges_river.shp")
-sh_river_path <- paste0("e:/rhine_spacial/river_3_projected.shp")
-sh_alpr_path <- paste0(base_dir, "data/basins_shp/", "alp_rhine", ".shp")
-sh_reus_path <- paste0(base_dir, "data/basins_shp/", "reuss", ".shp")
-sh_aare_path <- paste0(base_dir, "data/basins_shp/", "aare", ".shp")
-sh_main_path <- paste0(base_dir, "data/basins_shp/", "main", ".shp")
-sh_lobi_path <- paste0(base_dir, "data/basins_shp/", "lobith", ".shp")
-sh_lahn_path <- paste0(base_dir, "data/basins_shp/", "lahn", ".shp")
-sh_nahe_path <- paste0(base_dir, "data/basins_shp/", "nahe", ".shp")
-sh_mose_path <- paste0(base_dir, "data/basins_shp/", "moselle", ".shp")
-sh_neck_path <- paste0(base_dir, "data/basins_shp/", "neckar", ".shp")
 
-gauges_basins <- rgdal::readOGR(dsn = sh_gauges_basins_path)
-gauges_river <- rgdal::readOGR(dsn = sh_gauges_river_path)
-river <- rgdal::readOGR(dsn = sh_river_path)
+#Load basin boundaries (shapefile delineated beforehand using GIS)
+sh_alpr_path <- paste0(base_dir, "data/", "alp_rhine", ".shp")
+sh_reus_path <- paste0(base_dir, "data/", "reuss", ".shp")
+sh_aare_path <- paste0(base_dir, "data/", "aare", ".shp")
+sh_main_path <- paste0(base_dir, "data/", "main", ".shp")
+sh_lobi_path <- paste0(base_dir, "data/", "lobith", ".shp")
+sh_lahn_path <- paste0(base_dir, "data/", "lahn", ".shp")
+sh_nahe_path <- paste0(base_dir, "data/", "nahe", ".shp")
+sh_mose_path <- paste0(base_dir, "data/", "moselle", ".shp")
+sh_neck_path <- paste0(base_dir, "data/", "neckar", ".shp")
+sh_griv_path <- paste0(base_dir, "data/", "gauges_river", ".shp")
+
 sh_alpr <- rgdal::readOGR(dsn = sh_alpr_path)
 sh_reus <- rgdal::readOGR(dsn = sh_reus_path)
 sh_aare <- rgdal::readOGR(dsn = sh_aare_path)
@@ -41,10 +37,10 @@ sh_lahn <- rgdal::readOGR(dsn = sh_lahn_path)
 sh_nahe <- rgdal::readOGR(dsn = sh_nahe_path)
 sh_mose <- rgdal::readOGR(dsn = sh_mose_path)
 sh_neck <- rgdal::readOGR(dsn = sh_neck_path)
+sh_griv <- rgdal::readOGR(dsn = sh_griv_path)
+
 crswgs84 <- sp::CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
-gauges_basins <- sp::spTransform(gauges_basins, CRS = crswgs84)
-gauges_river <- sp::spTransform(gauges_river, CRS = crswgs84)
-river <- sp::spTransform(river, CRS = crswgs84)
+
 sh_alpr <- sp::spTransform(sh_alpr, CRS = crswgs84)
 sh_reus <- sp::spTransform(sh_reus, CRS = crswgs84)
 sh_aare <- sp::spTransform(sh_aare, CRS = crswgs84)
@@ -54,8 +50,9 @@ sh_lahn <- sp::spTransform(sh_lahn, CRS = crswgs84)
 sh_nahe <- sp::spTransform(sh_nahe, CRS = crswgs84)
 sh_mose <- sp::spTransform(sh_mose, CRS = crswgs84)
 sh_neck <- sp::spTransform(sh_neck, CRS = crswgs84)
+sh_griv <- sp::spTransform(sh_griv, CRS = crswgs84)
 
-load(paste0(base_dir, "R/rhine_flow/rhine_obs_app/rhine_obs_meet.RData"))
+load(paste0(base_dir, "data/rhine_flow_app.RData"))
 
 #user_interface####
 ui <- fluidPage(theme = shinytheme("superhero"),
@@ -156,7 +153,7 @@ rhine_map <- shiny::reactive({
                 label = "Main catchment measured at gauge Frankfurt",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "bottom"))%>%
-    addCircleMarkers(data = gauges_river, label = ~name, color = "black", stroke = F, fillOpacity = 0.4,
+    addCircleMarkers(data = sh_griv, label = ~name, color = "black", stroke = F, fillOpacity = 0.4,
                      labelOptions = labelOptions(noHide = F, direction = "bottom")) %>%
     # addCircleMarkers(data = gauges_basins, label = ~name,
     #                  stroke = F, fillOpacity = 0.4) %>%
