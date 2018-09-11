@@ -1,0 +1,308 @@
+###
+
+#Rhine river observations - Main file
+#Erwin Rottler, University of Potsdam
+#Summer 2018
+
+###
+
+#settings----
+
+#load packages
+pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2, 
+               sp, viridis, rgdal, leaflet, ggmap, zoo, zyp, alptempr, lmomco, 
+               raster, foreach, rfs, dismo, XML, parallel, doParallel, Lmoments,
+               shape, devtools, pbapply, profvis, RColorBrewer, viridis)
+
+#set directories
+base_dir <- "u:/RhineFlow/rhine_obs/"
+# file_dir <- "e:/mhm_data/04_Daten/lobith_6435060/input/"
+file_dir <- "D:/nrc_data/01_Data localized (area specific)/Germany/E-OBS Daten Rhein Berry Boessenkool/RhineFloodSeasonality(data mHM)/04_Daten/lobith_6435060/input/" #location data files
+
+#general parameter
+start_year <- 1961
+end_year <- 2010
+window_width <- 30 
+n_cores <- 50 #number of cores used for parallel computing
+cover_thres <- 10/60 #minimum fraction of NA values at trend computing
+
+#basin parameter
+do_basin_prep <- T
+do_basin_calc <- T
+do_snow_sim <- T #do snow cover simulation with snowAlone
+do_snow_sim_vis <- T #visualization basin output with snow simulation
+snow_exe <- paste0(base_dir, "snow_sim/snowAlone/snowAlone/Debug/snowAlone.exe")
+basin_sel <- "aare"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn
+basin_stn <- "Brugg"    # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen
+high_stat_thresh <- 1800
+middle_stat_thresh <- 800
+
+#flow parameter
+do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations
+do_prob <- F #do analysis/visualization (moving) probability all quantiles
+do_extr <- F #do analysis/visualization (moving) probability high quantiles only
+do_disco <- F #do analysis/visualization discharge coefficient
+do_regime <- T #regime change along the Rhine river analysis/visualization
+gaug_sel <- c("Diepoldsau", "Brugg", "Mellingen", "Basel_Rheinhalle", "Rockenau", "Worms", 
+              "Frankfurt", "Grolsheim", "Kaub", "Kalkofen", "Cochem", "Koeln")
+quants <- seq(0.01, 0.99, by = 0.01)
+quants_ext <- c(0.850, 0.900, 0.925, 0.950)
+
+#snow parameter
+do_snow = F #do analysis snow height measurements selected stations
+
+#weather parameter
+#do basin meteo data preparation!!! (do_basin_prep <- T)
+do_wtc_calc <- T
+do_wtc_visu <- T
+do_mean_wt_clim <- T
+wt_wt_data <- "gwt26msl" #gwt26geo, gwt26msl, cap27msl, ncl40ali
+wt_clim_data <- "rainfall" #temperature, rainfall
+wt_num <- 26 #number of weather type classes in classification
+wt_low <- 1:6 #selected low weather types for trend analysis
+wt_hig <- 25:26 #selected high weather types for trend analysis
+wt_slo <-  "fixed" #fixed, flexi
+
+#load functions
+source(paste0(base_dir, "R/2_rhine_functions.R"))
+
+#Make cluster for parallel computing
+my_clust <- makeCluster(n_cores)
+clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4))
+registerDoParallel(my_clust)
+
+#analy_basin----
+source(paste0(base_dir, "R/5_rhine_basin.R"))
+#analy_flow----
+if(do_flow){
+  source(paste0(base_dir, "R/3_rhine_flow.R"))
+}
+
+#analy_snow----
+if(do_snow){
+  source(paste0(base_dir, "R/4_rhine_snow.R"))
+}
+
+
+
+#analysis_wtype----
+
+if(wt_clim_data == "temperature"){
+   clim_data <- temp_basin
+}
+if(wt_clim_data == "rainfall"){
+   clim_data <- prec_basin
+}
+
+if(wt_wt_data == "gwt26geo"){
+   wt_data <- data_gwt26geo
+}
+if(wt_wt_data == "gwt26msl"){
+   wt_data <- data_gwt26msl
+}
+if(wt_wt_data == "cap27msl"){
+  wt_data <- data_cap27msl
+}
+if(wt_wt_data == "ncl40ali"){
+  wt_data <- data_ncl40ali
+}
+
+#average value of climate variable for weather types
+wt_clim_med <- gwt_med(dates = full_date, clim_data = clim_data, gwt_data = wt_data$value, numb_wt=wt_num)
+wt_clim_mea <- gwt_mea(dates = full_date, clim_data = clim_data, gwt_data = wt_data$value, numb_wt=wt_num)
+
+#get rank out of mean values
+wt_rank <- matrix(NA, ncol = wt_num, nrow = 365)
+for (i in 1:365) {
+  
+  wt_clim_med_sort <- sort(wt_clim_med[i, ])
+  
+  if(length(wt_clim_med_sort) > length(c(wt_low, wt_hig))){
+    gwt_low <- as.numeric(names(wt_clim_med_sort)[wt_low])
+    gwt_hig <- as.numeric(names(wt_clim_med_sort)[(length(wt_clim_med_sort)-(length(wt_hig)-1)) : length(wt_clim_med_sort)])
+  }else{
+    if(is.even(length(wt_clim_med_sort))){
+      gwt_low <- as.numeric(names(wt_clim_med_sort)[1:(length(wt_clim_med_sort) / 2)])
+      gwt_hig <- as.numeric(names(wt_clim_med_sort)[((length(wt_clim_med_sort) / 2) + 1) : length(wt_clim_med_sort)])
+    }else{
+      gwt_low <- as.numeric(names(wt_clim_med_sort)[1:(floor(length(wt_clim_med_sort) / 2))])
+      gwt_hig <- as.numeric(names(wt_clim_med_sort)[ceiling((length(wt_clim_med_sort) / 2)) : length(wt_clim_med_sort)])
+    }
+  }
+  wt_rank[i, gwt_low] <-  -1
+  wt_rank[i, gwt_hig] <-   1
+  
+}
+
+
+#Calculate changes in frequencies
+if(wt_slo == "fixed"){
+
+  #Determine driving weather types
+  wt_rank_sum <- apply(wt_rank[,], 2, sum_na)
+  
+  names(wt_rank_sum) <- 1:length(wt_rank_sum)
+  
+  wt_rank_sum_sort <- sort(wt_rank_sum)
+  
+  low_wts  <- as.numeric(names(wt_rank_sum_sort)[wt_low])
+  hig_wts  <- as.numeric(names(wt_rank_sum_sort)[wt_hig])
+  
+wt_hig_slo <- moving_analys(dates = wt_data$date, values = wt_data$value, start_year = start_year,
+                                    end_year = end_year, window_width = window_width,
+                                    cover_thres = cover_thres, method_analys = "weather_type_window_likeli_sens_slope",
+                                    weather_type = hig_wts)*100*10# [%/dec]
+
+wt_low_slo <- moving_analys(dates = wt_data$date, values = wt_data$value, start_year = start_year,
+                                    end_year = end_year, window_width = window_width,
+                                    cover_thres = cover_thres, method_analys = "weather_type_window_likeli_sens_slope",
+                                    weather_type = low_wts)*100*10 # [%/dec]
+}
+
+if(wt_slo == "flexi"){
+  
+wt_hig_slo <- wt_flex_mov_2(wt_data = wt_data$value, wt_rank = wt_rank, date = my_date , hig_low = 1, 
+                          start_year = start_year, end_year = end_year, window_width = window_width, 
+                          cover_thres = cover_thres, wts_numb = length(wt_hig))*100*10 # [%/dec]
+
+wt_low_slo <- wt_flex_mov_2(wt_data = wt_data$value, wt_rank = wt_rank, date = my_date , hig_low = -1, 
+                          start_year = start_year, end_year = end_year, window_width = window_width, 
+                          cover_thres = cover_thres, wts_numb = length(wt_low))*100*10 # [%/dec]
+
+}
+
+#visuali_weath----
+
+pdf(paste0(base_dir, "figs/", basin_sel, "_", wt_wt_data, "_", wt_clim_data, "_", wt_slo, ".pdf"), width = 7.09, height = 2.5)
+
+par(oma = c(0,0,0,0))
+par(family = "serif")
+par(mfrow = c(1,2))
+
+y <- 1:wt_num
+x <- 1:365
+
+#Plot 1: Discharge - Weather type ranking high / low
+par(mar = c(1, 2.2, 1.5, 0.6))
+
+col_lows  <- "darkblue"
+col_highs <- "darkorange3" #firebrick
+col_hig_im <- "darkorange3"
+col_low_im <- "darkblue"
+col_net <- "black"
+
+wt_max <- max_na(c(loess_NA_restore(wt_low_slo),
+                            loess_NA_restore(wt_hig_slo),
+                            (loess_NA_restore(wt_hig_slo) - loess_NA_restore(wt_low_slo))))+2
+
+wt_min <- min_na(c(loess_NA_restore(wt_low_slo),
+                            loess_NA_restore(wt_hig_slo),
+                            (loess_NA_restore(wt_hig_slo) - loess_NA_restore(wt_low_slo))))-1
+
+image(x, y, as.matrix(wt_rank), col = c(col_low_im, col_hig_im), breaks = c(-2, 0, 2), ylab = "",
+      xlab = "", main = "", axes = F)
+
+x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+x_axis_tic <- c(15,46,74,105,135,166,196,227,258,288,319,349,380)-15
+
+axis(1, at = x_axis_tic, c("","","","","","","","","","","","",""), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.0, 0), cex.axis = 0.7)
+axis(2, mgp = c(3, 0.2, 0), tck=-0.04, cex.axis = 0.7)
+mtext(paste0(wt_wt_data, " weather type"), side = 2, line = 1.5, padj = 1, cex = 0.8)
+box()
+mtext(paste0("Weather types: ", wt_clim_data), side = 3, line = 0.8, padj = 1, at = 385, cex = 1)
+
+if(wt_slo == "fixed"){
+#Add markers for selected weather types
+par(xpd = T)
+
+points_x_low <- rep(375, length(low_wts))
+points_y_hig <- rep(375, length(hig_wts))
+points_y_low  <- c(low_wts)
+points_y_high <- c(hig_wts)
+
+Arrows(points_x_low, points_y_low, points_x_low+5,  points_y_low, col = col_lows,
+       arr.type = "triangle", arr.adj = 1, code = 2, arr.length = 0.15)
+
+Arrows(points_y_hig, points_y_high, points_y_hig+5,  points_y_high, col = col_highs,
+       arr.type = "triangle", arr.adj = 1, code = 2, arr.length = 0.15)
+
+par(xpd = F)
+}
+
+#Plot 2: Temperature - Window trends frequencies
+par(mar = c(1, 0.2, 1.5, 2))
+
+plot(wt_low_slo, type = "n", main ="", ylim = c(wt_min, wt_max), ylab = "", xlab = "", axes = F)
+lines(loess_NA_restore(wt_low_slo), col = col_lows, lwd = 2)
+lines(loess_NA_restore(wt_hig_slo), col = col_highs, lwd = 2)
+lines(loess_NA_restore(wt_hig_slo) - loess_NA_restore(wt_low_slo), col = col_net, lwd = 2)
+axis(1, at = x_axis_tic, c("","","","","","","","","","","","",""), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.0, 0), cex.axis = 0.7)
+axis(4, mgp = c(3, 0.0, 0), tck=-0.04, cex.axis = 0.7)
+abline(h = 0, lty = "dashed", lwd = 0.9)
+abline(v = x_axis_tic, lty = "dashed", lwd = 0.9)
+legend("topleft", c("            ","            "), cex = 0.8, box.col = "white", bg = "white", adj = 0.2)
+mtext("hig GWTs", side = 3, line = -0.4, padj = 1, adj = 0.02, cex = 0.7, col = col_highs)
+mtext("low GWTs", side = 3, line = -1.1, padj = 1, adj = 0.02, cex = 0.7, col = col_lows)
+mtext("WTE index",  side = 3, line = -1.8, padj = 1, adj = 0.02, cex = 0.7, col = col_net)
+box()
+
+mtext("Trend window prob. [%/dec]", side = 4, line = 0.3, padj = 1, cex = 0.8)
+
+dev.off()
+
+#visuali_spati----
+
+pdf(paste0(base_dir, "figs/",basin_sel, "_spatial", ".pdf"), width = 6, height = 4)
+
+par(oma = c(0,0,0,0))
+par(family = "serif")
+par(mfrow = c(2,2))
+
+#Map of watershed and enclosed meteo grid points
+par(mar = c(3, 3, 2, 1))
+
+plot(dem_84, main = paste0(basin_sel), axes=F)
+lines(basin_84, lwd = 0.7)
+# points(grid_points, cex = 0.03, pch=19)
+axis(1, mgp = c(3, 0.0, 0), tck=-0.04, cex.axis = 0.7)
+axis(2, mgp = c(3, 0.0, 0), tck=-0.04, cex.axis = 0.7)
+
+plot(1,1, type = F)
+
+#Histogramm elevation distribution dem
+par(mar = c(3, 3, 2, 1))
+graphics::hist(dem_ele,  breaks = 15, col = "grey50",
+               # yaxs =  "i", xaxs = "i", 
+               xlab = "Elevation [m]", axes=F,
+               main = "dem")
+axis(1, mgp = c(3, 0.0, 0), tck=-0.04, cex.axis = 0.7)
+axis(2, mgp = c(3, 0.0, 0), tck=-0.04, cex.axis = 0.7)
+mtext(paste0("Frequency"), side = 2, line = 1.5, padj = 1, cex = 0.8)
+mtext(paste0("Elevation"), side = 1, line = 0.5, padj = 1, cex = 0.8)
+box()
+
+#Histogramm elevation distribution grid points
+graphics::hist(elevs,  breaks = 15, col = "grey50",
+               # yaxs =  "i", xaxs = "i", 
+               xlab = "Elevation [m]", axes=F,
+               main = paste0("grid (", length(grid_points), ")"))
+axis(1, mgp = c(3, 0.0, 0), tck=-0.04, cex.axis = 0.7)
+axis(2, mgp = c(3, 0.0, 0), tck=-0.04, cex.axis = 0.7)
+mtext(paste0("Frequency"), side = 2, line = 1.5, padj = 1, cex = 0.8)
+mtext(paste0("Elevation"), side = 1, line = 0.5, padj = 1, cex = 0.8)
+box()
+
+dev.off()
+
+
+
+
+#stop cluster----
+stopCluster(my_clust)
+
