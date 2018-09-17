@@ -171,14 +171,14 @@ if(do_basin_prep){
 #snow_simu----
 if(do_snow_sim){
   
-  for(i in 1:ncol(precs)){
-    
+  # for(i in 1:ncol(precs)){
+  for(i in 1:ncol(precs)){  
     print(paste(Sys.time(), "Processing grid point", i, "out of", ncol(precs)))
     
     #Rainfall [mm]
     rain <- precs[, i]
     
-    #Temperature [캜]
+    #Temperature [?C]
     temp = temps[, i]
     
     #Raidation [W/m2]
@@ -230,6 +230,9 @@ if(do_basin_calc){
       f_mea(snows[, i]) * 1000 #[mm]
       
     }
+    #Snow simulation only points avearge temperature > 0째C
+    temps_mea <- apply(temps, 2, mea_na)
+    smea[ ,which(temps_mea < 0)] <- NA
     smea <- smea[, order(elevs)] #order columns by elevation of grip points
     colnames(smea) <- paste0("point", 1:length(grid_points))
     smea_mea <- apply(smea, 2, mea_na)#annual average values
@@ -241,6 +244,9 @@ if(do_basin_calc){
       f_med(snows[, i])* 1000 #[mm]
       
     }
+    #Snow simulation only points avearge temperature > 0째C
+    temps_mea <- apply(temps, 2, mea_na)
+    smed[ ,which(temps_mea < 0)] <- NA
     smed <- smed[, order(elevs)] #order columns by elevation of grip points
     colnames(smed) <- paste0("point", 1:length(grid_points))
     smed_mea <- apply(smea, 2, mea_na)#annual average values
@@ -252,6 +258,9 @@ if(do_basin_calc){
       f_slo(snows[, i])*1000*10 #[mm/dec]
       
     }
+    #Snow simulation only points avearge temperature > 0째C
+    temps_mea <- apply(temps, 2, mea_na)
+    sslo[ ,which(temps_mea < 0)] <- NA
     sslo <- sslo[, order(elevs)]
     colnames(sslo) <- paste0("point", 1:length(grid_points))
     sslo_mea <- apply(sslo, 2, mea_na)#annual average values
@@ -264,6 +273,9 @@ if(do_basin_calc){
       f_pro_snow_sim(snows[, i])
       
     }
+    #Snow simulation only points avearge temperature > 0째C
+    temps_mea <- apply(temps, 2, mea_na)
+    swep[ ,which(temps_mea < 0)] <- NA
     swep <- swep[, order(elevs)] #order columns by elevation of grip points
     colnames(swep) <- paste0("point", 1:length(grid_points))
     swep_mea <- apply(swep, 2, mea_na)#annual average values
@@ -276,11 +288,13 @@ if(do_basin_calc){
       f_psl_snow_sim(snows[, i])
       
     }
+    #Snow simulation only points avearge temperature > 0째C
+    temps_mea <- apply(temps, 2, mea_na)
+    swes[ ,which(temps_mea < 0)] <- NA
     swes <- swes[, order(elevs)] #order columns by elevation of grip points
     colnames(swes) <- paste0("point", 1:length(grid_points))
     swes_mea <- apply(swes, 2, mea_na)#annual average values
     swes_med <- apply(swes, 2, med_na)#annual average values
-  
   }
   
   #Average 30DMA temperature
@@ -484,8 +498,8 @@ plot_cycl_elev(data_in = smea, data_mk = smea, data_in_me = smea_mea,
                margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                no_col = F, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
                smooth_val = 0.01, mk_sig_level = 0.05, add_st_num = T)
-  
-plot_cycl_elev(data_in = sslo, data_mk = sslo, data_in_me = sslo_med,
+
+plot_cycl_elev(data_in = sslo, data_mk = sslo, data_in_me = sslo_mea,
                data_meta = meta_grid, main_text = paste0("SWE [mm/dec]"),
                margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                no_col = F, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
@@ -506,39 +520,44 @@ plot_cycl_elev(data_in = swes, data_mk = swes, data_in_me = swes_mea,
 
 dev.off()
 
-# tmed_aare <- tmed
-# tmed_med_aare <- tmed_med
-# tslo_aare <- tslo
-# tslo_med_aare <- tslo_med
-# pmea_aare <- pmea
-# pmea_med_aare <- pmea_med
-# pslo_aare <- pslo
-# pslo_med_aare <- pslo_med
-# emed_aare <- emed
-# emed_med_aare <- emed_med
-# eslo_aare <- eslo
-# eslo_med_aare <- eslo_med
-# tzer_aare <- tzer
-# tzer_mea_aare <- tzer_mea
-# tzes_aare <- tzes
-# tzes_mea_aare <- tzes_mea
-# lfra_aare <- lfra
-# lfra_mea_aare <- lfra_mea
-# lfrs_aare <- lfrs
-# lfrs_mea_aare <- lfrs_mea
-# smea_aare <- smea
-# smea_mea_aare <- smea_mea
-# sslo_aare <- sslo
-# sslo_mea_aare <- sslo_mea
-# sslo_med_aare <- sslo_med
-# swep_aare <- swep
-# swep_mea_aare <- swep_mea
-# swep_med_aare <- swep_med
-# swes_aare <- swes
-# swes_mea_aare <- swes_mea
-# swes_med_aare <- swes_med
-# meta_grid_aare <- meta_grid
+# tmed_lahn <- tmed
+# tmed_med_lahn <- tmed_med
+# tslo_lahn <- tslo
+# tslo_med_lahn <- tslo_med
+# pmea_lahn <- pmea
+# pmea_med_lahn <- pmea_med
+# pslo_lahn <- pslo
+# pslo_med_lahn <- pslo_med
+# emed_lahn <- emed
+# emed_med_lahn <- emed_med
+# eslo_lahn <- eslo
+# eslo_med_lahn <- eslo_med
+# tzer_lahn <- tzer
+# tzer_mea_lahn <- tzer_mea
+# tzes_lahn <- tzes
+# tzes_mea_lahn <- tzes_mea
+# lfra_lahn <- lfra
+# lfra_mea_lahn <- lfra_mea
+# lfrs_lahn <- lfrs
+# lfrs_mea_lahn <- lfrs_mea
+# smea_lahn <- smea
+# smea_mea_lahn <- smea_mea
+# sslo_lahn <- sslo
+# sslo_mea_lahn <- sslo_mea
+# sslo_med_lahn <- sslo_med
+# swep_lahn <- swep
+# swep_mea_lahn <- swep_mea
+# swep_med_lahn <- swep_med
+# swes_lahn <- swes
+# swes_mea_lahn <- swes_mea
+# swes_med_lahn <- swes_med
+# meta_grid_lahn <- meta_grid
 
+# rm(basin, basin_84, basin_coords, crswgs84, dem, dem_84, dem_84_cro, dem_84_sub, dis,
+#    emed, epsg3035, eslo, grid_points, grid_points_cube, lat, lat2D, lfra, lfrs, lon, lon2D,
+#    meta_grid, my_clust, nc_petr, nc_prec, nc_temp, output, petrs, pmea, pmed, precs, pslo,
+#    qmove_sing, qprob_sing, smea, smed, snows, sslo, swe, swes, temps, tmed, tslo, tzer, tzes, 
+#    petr_cube, precs_cube, temps_cube)
 
 
 

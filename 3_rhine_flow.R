@@ -224,7 +224,7 @@ if(do_extr){
 
 if(FALSE){
   
-  gaug_sel <- c("Diepoldsau_2", "Cochem")
+  gaug_sel <- c("Diepoldsau_2", "Rockenau")
   cols_sel <- sapply(gaug_sel, sel_dis) #columns with selected gauges
   dis_sel <- dis[, cols_sel] #extract selected time series from data frame
   
@@ -532,7 +532,7 @@ if(do_regime){
        col="black", col.axis="black", tck=-0.04)#plot ticks
   axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
        col = "black", col.axis = "black", mgp = c(3, 0.3, 0))
-  mtext("Discharge [m³/s]", side = 2, line = 2, padj = 1, cex = 0.7)
+  mtext("Discharge [m?/s]", side = 2, line = 2, padj = 1, cex = 0.7)
   box()
   
   #Plot: Legend to the left

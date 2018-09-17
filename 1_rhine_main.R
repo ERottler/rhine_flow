@@ -9,6 +9,7 @@
 #settings----
 
 #load packages
+# devtools::install_github('ERottler/alptempr')
 pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2, 
                sp, viridis, rgdal, leaflet, ggmap, zoo, zyp, alptempr, lmomco, 
                raster, foreach, rfs, dismo, XML, parallel, doParallel, Lmoments,
@@ -23,7 +24,7 @@ file_dir <- "D:/nrc_data/01_Data localized (area specific)/Germany/E-OBS Daten R
 start_year <- 1961
 end_year <- 2010
 window_width <- 30 
-n_cores <- 50 #number of cores used for parallel computing
+n_cores <- 6 #number of cores used for parallel computing
 cover_thres <- 10/60 #minimum fraction of NA values at trend computing
 
 #basin parameter
@@ -32,10 +33,10 @@ do_basin_calc <- T
 do_snow_sim <- T #do snow cover simulation with snowAlone
 do_snow_sim_vis <- T #visualization basin output with snow simulation
 snow_exe <- paste0(base_dir, "snow_sim/snowAlone/snowAlone/Debug/snowAlone.exe")
-basin_sel <- "aare"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn
-basin_stn <- "Brugg"    # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen
-high_stat_thresh <- 1800
-middle_stat_thresh <- 800
+basin_sel <- "lahn"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn
+basin_stn <- "Kalkofen"    # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen
+high_stat_thresh <- 3000
+middle_stat_thresh <- 2500
 
 #flow parameter
 do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations
@@ -64,7 +65,7 @@ wt_hig <- 25:26 #selected high weather types for trend analysis
 wt_slo <-  "fixed" #fixed, flexi
 
 #load functions
-source(paste0(base_dir, "R/2_rhine_functions.R"))
+source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
 
 #Make cluster for parallel computing
 my_clust <- makeCluster(n_cores)
