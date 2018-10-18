@@ -67,7 +67,7 @@ ui <- fluidPage(theme = shinytheme("superhero"),
     width = 12,
     hr(),
     tags$h3("Changes in Rhine flood seasonality due to climate change"),
-    tags$h5("Erwin Rottler, Berry Boessenkool, Till Franke, Gerd Bürder and Axel Bronstert"),
+    tags$h5("Erwin Rottler, Berry Boessenkool, Till Francke, Gerd Bürger and Axel Bronstert"),
     hr(),
     column(
       width = 6,
@@ -136,16 +136,16 @@ rhine_map <- shiny::reactive({
     # Overlay groups
     addPolygons(data = sh_lobi, layerId = "lobith", fillOpacity = 0)%>%
     addPolygons(data = sh_alpr, layerId = "alp_rhine", fillOpacity = 0.4, group = "click.list",
-                label = "Alpine Rhine measured at gauge Diepoldsau",
+                label = "Alpine Rhine measured at gauge Diepoldsau", color = "red",
                 # popup = "Alpine Rhine measured at gauge Diepoldsau",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_reus, layerId = "reuss", fillOpacity = 0.4, group = "click.list",
-                label = "Reuss catchment measured at gauge Mellingen",
+                label = "Reuss catchment measured at gauge Mellingen", color = "red",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_aare, layerId = "aare", fillOpacity = 0.4, group = "click.list",
-                label = "Aare catchment measured at gauge Brugg",
+                label = "Aare catchment measured at gauge Brugg", color = "red",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_mose, layerId = "moselle",fillOpacity = 0.4, group = "click.list",
@@ -170,6 +170,14 @@ rhine_map <- shiny::reactive({
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addCircleMarkers(data = sh_griv, label = ~name, color = "black", stroke = F, fillOpacity = 0.4,
                      labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20))) %>%
+    addCircleMarkers(lng = 10.50, lat = 47.00, label = "nival", color = "red", stroke = F, fillOpacity = 0.0,
+                     labelOptions = labelOptions(noHide = T, direction = "right", offset = c(0, 0),
+                                                 style = list("color" = "red",
+                                                              "font-size" = "14px"))) %>%
+    addCircleMarkers(lng = 5.20, lat = 49.80, label = "pluvial", color = "red", stroke = F, fillOpacity = 0.0,
+                     labelOptions = labelOptions(noHide = T, direction = "left", offset = c(0, 0),
+                                                 style = list("color" = "blue",
+                                                              "font-size" = "14px"))) %>%
     # addCircleMarkers(data = gauges_basins, label = ~name,
     #                  stroke = F, fillOpacity = 0.4) %>%
     # addPolylines(data = river, fillOpacity = 0.9, stroke = T, fillColor = "blue3") %>%
@@ -229,7 +237,7 @@ f_plot_disc <- function(){
   image_flow(data_in   = qprob[, z],
              colors    = cols_1,
              breaks    = seq(0, 100, length.out=201),
-             main      = paste0(colnames(dis_sel)[i], ": Quantile probab. [%]"),
+             main      = paste0(colnames(dis_sel)[i], ": Quantile exceedance probab. [%]"),
              ylab      = "Quantile",
              margins_1 = c(1.6,2.5,1.6,0),
              margins_2 = c(1.6,0.5,1.6,1.7)
@@ -250,7 +258,7 @@ f_plot_disc <- function(){
   image_flow(data_in <- qmove[, z],
              colors <- cols_2,
              breaks = seq(min_na(qmove[, z]), max_na(qmove[, z]), length.out = length(cols_2) +1),
-             main <- paste0(colnames(dis_sel)[i], ": Trend moving prob. [%/dec]"),
+             main <- paste0(colnames(dis_sel)[i], ": Trend moving quantile exceedance prob. [%/dec]"),
              ylab <- "Quantile",
              margins_1 = c(1.6,2.5,1.6,0),
              margins_2 = c(1.6,0.5,1.6,1.7)
@@ -285,7 +293,7 @@ f_plot_clim <- function(){
                  smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
   
   plot_cycl_elev(data_in = smea, data_mk = smea, data_in_me = smea_mea,
-                 data_meta = meta_grid, main_text = paste0("Snow water equiv. [mm]"),
+                 data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                  no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
                  smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
@@ -318,7 +326,7 @@ f_plot_clic <- function(){
                  smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
   
   plot_cycl_elev(data_in = sslo, data_mk = sslo, data_in_me = sslo_mea,
-                 data_meta = meta_grid, main_text = paste0("Snow water equiv. [mm/dec]"),
+                 data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm/dec]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                  no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
                  smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
@@ -383,7 +391,7 @@ observeEvent(input$map_marker_click,{
     image_flow(data_in   = qprob[, z],
                colors    = cols_1,
                breaks    = seq(0, 100, length.out=201),
-               main      = paste0(colnames(dis_sel)[i], ": Quantile probab. [%]"),
+               main      = paste0(colnames(dis_sel)[i], ": Quantile exceedance probab. [%]"),
                ylab      = "Quantile",
                margins_1 = c(1.6,2.5,1.6,0),
                margins_2 = c(1.6,0.5,1.6,1.7)
@@ -404,7 +412,7 @@ observeEvent(input$map_marker_click,{
     image_flow(data_in <- qmove[, z],
                colors <- cols_2,
                breaks = seq(min_na(qmove[, z]), max_na(qmove[, z]), length.out = length(cols_2) +1),
-               main <- paste0(colnames(dis_sel)[i], ": Trend moving prob. [%/dec]"),
+               main <- paste0(colnames(dis_sel)[i], ": Trend moving quantile exceedance prob. [%/dec]"),
                ylab <- "Quantile",
                margins_1 = c(1.6,2.5,1.6,0),
                margins_2 = c(1.6,0.5,1.6,1.7)
@@ -662,7 +670,7 @@ observeEvent(input$map_shape_click,{
     image_flow(data_in   = qprob[, z],
                colors    = cols_1,
                breaks    = seq(0, 100, length.out=201),
-               main      = paste0(colnames(dis_sel)[i], ": Quantile probab. [%]"),
+               main      = paste0(colnames(dis_sel)[i], ": Quantile exceedance probab. [%]"),
                ylab      = "Quantile",
                margins_1 = c(1.6,2.5,1.6,0),
                margins_2 = c(1.6,0.5,1.6,1.7)
@@ -683,7 +691,7 @@ observeEvent(input$map_shape_click,{
     image_flow(data_in <- qmove[, z],
                colors <- cols_2,
                breaks = seq(min_na(qmove[, z]), max_na(qmove[, z]), length.out = length(cols_2) +1),
-               main <- paste0(colnames(dis_sel)[i], ": Trend moving prob. [%/dec]"),
+               main <- paste0(colnames(dis_sel)[i], ": Trend moving quantile exceedance prob. [%/dec]"),
                ylab <- "Quantile",
                margins_1 = c(1.6,2.5,1.6,0),
                margins_2 = c(1.6,0.5,1.6,1.7)
@@ -718,7 +726,7 @@ observeEvent(input$map_shape_click,{
                    smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
     
     plot_cycl_elev(data_in = smea, data_mk = smea, data_in_me = smea_mea,
-                   data_meta = meta_grid, main_text = paste0("Snow water equiv. [mm]"),
+                   data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
                    smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
@@ -751,7 +759,7 @@ observeEvent(input$map_shape_click,{
                    smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
     
     plot_cycl_elev(data_in = sslo, data_mk = sslo, data_in_me = sslo_mea,
-                   data_meta = meta_grid, main_text = paste0("Snow water equiv. [mm/dec]"),
+                   data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm/dec]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
                    smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)

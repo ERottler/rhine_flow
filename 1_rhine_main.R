@@ -13,12 +13,12 @@
 pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2, 
                sp, viridis, rgdal, leaflet, ggmap, zoo, zyp, alptempr, lmomco, 
                raster, foreach, rfs, dismo, XML, parallel, doParallel, Lmoments,
-               shape, devtools, pbapply, profvis, RColorBrewer, viridis)
+               shape, devtools, pbapply, profvis, RColorBrewer, viridis, Rcpp, rEchseSnow)
 
 #set directories
 base_dir <- "u:/RhineFlow/rhine_obs/"
-# file_dir <- "e:/mhm_data/04_Daten/lobith_6435060/input/"
-file_dir <- "D:/nrc_data/01_Data localized (area specific)/Germany/E-OBS Daten Rhein Berry Boessenkool/RhineFloodSeasonality(data mHM)/04_Daten/lobith_6435060/input/" #location data files
+file_dir <- "e:/mhm_data/04_Daten/lobith_6435060/input/"
+# file_dir <- "D:/nrc_data/01_Data localized (area specific)/Germany/E-OBS Daten Rhein Berry Boessenkool/RhineFloodSeasonality(data mHM)/04_Daten/lobith_6435060/input/" #location data files
 
 #general parameter
 start_year <- 1961
@@ -32,11 +32,16 @@ do_basin_prep <- T
 do_basin_calc <- T
 do_snow_sim <- T #do snow cover simulation with snowAlone
 do_snow_sim_vis <- T #visualization basin output with snow simulation
+# Rcpp::sourceCpp(paste0(base_dir, "R/rhine_flow/echse_snow.cpp"))
+# Rcpp::Rcpp.package.skeleton(name = "rEchseSnow", cpp_files = paste0(base_dir, "R/rhine_flow/echse_snow.cpp"))
+# install.packages("u:/RhineFlow/rhine_obs/R/rhine_flow/rEchseSnow", repos=NULL, type="source")
+# library(rEchseSnow)
+snow_params <- read.table(paste0(base_dir, "R/rhine_flow/snow_param.txt"), header = T, sep = ";")
 snow_exe <- paste0(base_dir, "snow_sim/snowAlone/snowAlone/Debug/snowAlone.exe")
-basin_sel <- "lahn"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn
-basin_stn <- "Kalkofen"    # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen
-high_stat_thresh <- 3000
-middle_stat_thresh <- 2500
+basin_sel <- "reuss"           # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
+basin_stn <- "Mellingen"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
+high_stat_thresh <- 1900
+middle_stat_thresh <- 900
 
 #flow parameter
 do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations
@@ -69,7 +74,7 @@ source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
 
 #Make cluster for parallel computing
 my_clust <- makeCluster(n_cores)
-clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4))
+clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow))
 registerDoParallel(my_clust)
 
 #analy_basin----

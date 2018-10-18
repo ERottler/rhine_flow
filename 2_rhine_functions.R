@@ -81,9 +81,14 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     
   }
   
+  # if(method_analys == "mean"){
+  #   f_mean <- function(data_in){mean(data_in, na.rm = T)}
+  #   res <- apply(data_day[,-1], 2, f_mean)
+  # }
+  
   if(method_analys == "mean"){
-    f_mean <- function(data_in){mean(data_in, na.rm = T)}
-    res <- apply(data_day[,-1], 2, f_mean)
+    f_mea_na_thres <- function(data_in){mea_na_thres(x = data_in, na_thres = 1 - cover_thresh)}
+    res <- apply(data_day[,-1], 2, f_mea_na_thres)
   }
   
   if(method_analys == "median"){
