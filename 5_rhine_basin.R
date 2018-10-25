@@ -7,12 +7,12 @@
 ###
 
 #data preparation----
+
 if(do_basin_prep){
   #Load ncdf E-OBS gridded datasets
-  nc_temp_file <- paste0(file_dir, "meteo/tavg/tavg.nc")
-  nc_prec_file <- paste0(file_dir, "meteo/pre/pre.nc")
-  # nc_petr_file <- paste0("D:/nrc_user/rottler/meteo_HS/pet.nc")
-  nc_petr_file <- paste0("e:/mhm_data/04_Daten/meteo_HS/pet.nc")
+  nc_temp_file <- paste0(file_dir, "meteo/tavg.nc")
+  nc_prec_file <- paste0(file_dir, "meteo/pre.nc")
+  nc_petr_file <- paste0(file_dir, "meteo_HS/pet.nc")
   
   nc_temp <- ncdf4::nc_open(nc_temp_file)
   nc_prec <- ncdf4::nc_open(nc_prec_file)
@@ -24,8 +24,8 @@ if(do_basin_prep){
                       +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
   
   #Load DEM
-  # dem = raster(paste0(file_dir, "morph/dem.asc"), crs = epsg3035)
-  dem = raster(paste0(base_dir, "data/basins_shp/eu_dem_500_fil.tif"))
+  dem = raster(paste0(file_dir, "morph/dem.asc"), crs = epsg3035)
+  # dem = raster(paste0(base_dir, "data/basins_shp/eu_dem_500_fil.tif"))
   
   #Load basin boundaries (shapefile delineated beforehand using Q-GIS)
   my_basin <- paste0(base_dir, "data/basins_shp/", basin_sel, ".shp")
@@ -49,7 +49,7 @@ if(do_basin_prep){
   dem_ele_mea <- alptempr::mea_na(dem_ele)
   dem_ele_25 <- stats::quantile(dem_ele, probs = 0.25)
   dem_ele_75 <- stats::quantile(dem_ele, probs = 0.75)
-  
+
   #get lat/lon/time of .nc meteo data
   lon <- ncdf4::ncvar_get(nc_temp, varid = "lon2D")
   lat <- ncdf4::ncvar_get(nc_temp, varid = "lat2D")
@@ -167,6 +167,26 @@ if(do_basin_prep){
                           category = c(rep("low", LS_amount), rep("middle", MS_amount), rep("high", HS_amount)),
                           data_qual = rep("quality-checked", length(grid_points)),
                           clim_reg = rep("Jura", length(grid_points)))
+  
+  #Radiation data for snow simulations
+  
+  radi_sno <- read.table(paste0(base_dir, "data/idaweb/order62894/order_62894_data.txt"), sep = ";", skip = 2, header = T)#Basel
+  radi_sno$date <- as.Date(strptime(radi_sno$time, "%Y%m%d", tz="UTC"))
+  radi_sno$radi <- radi_sno$gre000d0
+  
+  radi_mea <- dis_ana(disc = radi_sno$radi,
+                      date = radi_sno$date,
+                      start_year = 1981,
+                      end_year = 2017,
+                      window_width = window_width,
+                      method_analys = "mean",
+                      cover_thresh = cover_thres)
+  
+  radi_mea_smo <- smoothFFT(radi_mea, sd = 7)
+  
+  #Syntetic radiation time series based on mean values
+  radi_mea_seri <- rep( c(radi_mea_smo, radi_mea_smo[365], rep(radi_mea_smo, 3)), 50)[1:nrow(temps)]
+  
 }
 
 #snow_simu----
@@ -241,7 +261,7 @@ if(do_snow_sim){
       sim_out <- snowModel_inter(
         #Forcings
         precipSumMM = precs[i, k],
-        shortRad = 100,
+        shortRad = radi_mea_seri[k],
         tempAir = temps[i, k],
         pressAir = 1000,
         relHumid = 70,
@@ -307,33 +327,59 @@ if(do_basin_calc){
   
   if(do_snow_sim){
   
-    #Average (mean) 30DMA snow water equivalent
-    print(paste(Sys.time(),"Average (mean) 30DMA swe"))
+    grid_m2 <- 5000*5000 #grid 5 km resolution
+    
+    #Average mean snow water equivalent
+    print(paste(Sys.time(),"Average mean swe"))
     smea <- foreach(i = 1:ncol(snows), .combine = 'cbind') %dopar% {
       
-      f_mea(snows[, i]) * 1000 #[mm]
+      f_mea(snows[, i]) #[m]
       
     }
-    #Snow simulation only points avearge temperature > 0°C
     temps_mea <- apply(temps, 2, mea_na)
-    smea[ ,which(temps_mea < 0)] <- NA
+    smea[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
     smea <- smea[, order(elevs)] #order columns by elevation of grip points
     colnames(smea) <- paste0("point", 1:length(grid_points))
     smea_mea <- apply(smea, 2, mea_na)#annual average values
     
     #Average median snow water equivalent
-    print(paste(Sys.time(),"Average (median) swe"))
+    print(paste(Sys.time(),"Average median swe"))
     smed <- foreach(i = 1:ncol(snows), .combine = 'cbind') %dopar% {
       
-      f_med(snows[, i])* 1000 #[mm]
+      f_med(snows[, i]) #[m]
       
     }
-    #Snow simulation only points avearge temperature > 0°C
     temps_mea <- apply(temps, 2, mea_na)
-    smed[ ,which(temps_mea < 0)] <- NA
+    smed[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
     smed <- smed[, order(elevs)] #order columns by elevation of grip points
     colnames(smed) <- paste0("point", 1:length(grid_points))
     smed_mea <- apply(smea, 2, mea_na)#annual average values
+    
+    #Average mean snow volume
+    print(paste(Sys.time(),"Average mean snow volume"))
+    vmea <- foreach(i = 1:ncol(snows), .combine = 'cbind') %dopar% {
+      
+      f_mea(snows[, i] * grid_m2) #[m³]
+      
+    }
+    temps_mea <- apply(temps, 2, mea_na)
+    vmea[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
+    vmea <- vmea[, order(elevs)] #order columns by elevation of grip points
+    colnames(vmea) <- paste0("point", 1:length(grid_points))
+    vmea_mea <- apply(vmea, 2, mea_na)#annual average values
+    
+    #Average median snow volume
+    print(paste(Sys.time(),"Average median snow volume"))
+    vmed <- foreach(i = 1:ncol(snows), .combine = 'cbind') %dopar% {
+      
+      f_med(snows[, i] * grid_m2) #[m³]
+      
+    }
+    temps_mea <- apply(temps, 2, mea_na)
+    vmed[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
+    vmed <- vmed[, order(elevs)] #order columns by elevation of grip points
+    colnames(vmed) <- paste0("point", 1:length(grid_points))
+    vmed_mea <- apply(vmed, 2, mea_na)#annual average values
     
     #Trends 30DMA snow water equivalent
     print(paste(Sys.time(),"Trends 30DMA swe"))
@@ -342,13 +388,26 @@ if(do_basin_calc){
       f_slo(snows[, i])*1000*10 #[mm/dec]
       
     }
-    #Snow simulation only points avearge temperature > 0°C
     temps_mea <- apply(temps, 2, mea_na)
-    sslo[ ,which(temps_mea < 0)] <- NA
+    sslo[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
     sslo <- sslo[, order(elevs)]
     colnames(sslo) <- paste0("point", 1:length(grid_points))
     sslo_mea <- apply(sslo, 2, mea_na)#annual average values
     sslo_med <- apply(sslo, 2, med_na)#annual average values
+    
+    #Trends 30DMA snow volume
+    print(paste(Sys.time(),"Trends 30DMA snow volume"))
+    vslo <- foreach(i = 1:ncol(snows), .combine = 'cbind') %dopar% {
+      
+      f_slo(snows[, i] * grid_m2) * 10 #[m³/dec]
+      
+    }
+    temps_mea <- apply(temps, 2, mea_na)
+    vslo[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
+    vslo <- vslo[, order(elevs)]
+    colnames(vslo) <- paste0("point", 1:length(grid_points))
+    vslo_mea <- apply(vslo, 2, mea_na)#annual average values
+    vslo_med <- apply(vslo, 2, med_na)#annual average values
     
     #Snow probability
     print(paste(Sys.time(),"Snow probability"))
@@ -357,9 +416,8 @@ if(do_basin_calc){
       f_pro_snow_sim(snows[, i])
       
     }
-    #Snow simulation only points avearge temperature > 0°C
     temps_mea <- apply(temps, 2, mea_na)
-    swep[ ,which(temps_mea < 0)] <- NA
+    swep[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
     swep <- swep[, order(elevs)] #order columns by elevation of grip points
     colnames(swep) <- paste0("point", 1:length(grid_points))
     swep_mea <- apply(swep, 2, mea_na)#annual average values
@@ -372,13 +430,49 @@ if(do_basin_calc){
       f_psl_snow_sim(snows[, i])
       
     }
-    #Snow simulation only points avearge temperature > 0°C
     temps_mea <- apply(temps, 2, mea_na)
-    swes[ ,which(temps_mea < 0)] <- NA
+    swes[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
     swes <- swes[, order(elevs)] #order columns by elevation of grip points
     colnames(swes) <- paste0("point", 1:length(grid_points))
     swes_mea <- apply(swes, 2, mea_na)#annual average values
     swes_med <- apply(swes, 2, med_na)#annual average values
+    
+    #Snow accumulation and melt water outflow
+    sv_diff <- function(snow_volume_in){
+      
+      sv_diff <- c(NA, diff(snow_volume_in))
+      
+      return(sv_diff)
+      
+    }
+    snows_dif <- apply(snows, 2, sv_diff)
+    
+    #Average snow volume diff
+    print(paste(Sys.time(),"Average (mean) snow volume diff"))
+    vdi_mea <- foreach(i = 1:ncol(snows_dif), .combine = 'cbind') %dopar% {
+      
+      f_mea(snows_dif[, i] * grid_m2)
+      
+    }
+    temps_mea <- apply(temps, 2, mea_na)
+    vdi_mea[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
+    vdi_mea <- vdi_mea[, order(elevs)] #order columns by elevation of grip points
+    colnames(vdi_mea) <- paste0("point", 1:length(grid_points))
+    vdi_mea_mea <- apply(vdi_mea, 2, mea_na)#annual average values
+    
+    #Trends 30DMA snow volume diff
+    print(paste(Sys.time(),"Trends 30DMA  snow volume diff"))
+    vdi_slo <- foreach(i = 1:ncol(snows_dif), .combine = 'cbind') %dopar% {
+      
+      f_slo(snows_dif[, i] * grid_m2)  *10
+      
+    }
+    temps_mea <- apply(temps, 2, mea_na)
+    vdi_slo[ ,which(temps_mea < 0)] <- NA #remove 'glacier' points
+    vdi_slo <- vdi_slo[, order(elevs)] #order columns by elevation of grip points
+    colnames(vdi_slo) <- paste0("point", 1:length(grid_points))
+    vdi_slo_mea <- apply(vdi_slo, 2, mea_na)#annual average values
+    
   }
   
   #Average 30DMA temperature
@@ -503,6 +597,131 @@ if(do_basin_calc){
   tzes_mea <- apply(tzes, 2, mea_na)#annual average values
   
 }
+
+#elev_ranges----
+
+min_na(meta_grid$alt)
+max_na(meta_grid$alt)
+
+my_elev_bands <- c(seq(400, 3000, 50), 3800)
+
+f_elev_bands <- function(data_in, elev_bands = my_elev_bands, 
+                         func_aggr = "medi", meta_dat = meta_grid){
+  
+  for(i in 1:(length(elev_bands) - 1)){
+    # print(i)
+    data_points_range <- which(meta_dat$alt > elev_bands[i] & meta_dat$alt < elev_bands[i+1])
+    
+    if(length(data_points_range) == 1){
+      data_range_sing <- data_in[, data_points_range]
+    }else{
+      if(func_aggr == "mean"){
+        data_range_sing <- apply(data_in[, data_points_range], 1, mea_na)
+      }
+      if(func_aggr == "medi"){
+        data_range_sing <- apply(data_in[, data_points_range], 1, med_na)
+      }
+      if(func_aggr == "sum"){
+        data_range_sing <- apply(data_in[, data_points_range], 1, sum_na)
+      }
+    }
+    
+    
+    if(i == 1){
+      
+      data_range <- data_range_sing
+      
+    }else{
+      
+      data_range <- cbind(data_range, data_range_sing)
+      
+    }
+    
+  }
+  
+  return(data_range)
+  
+}
+
+tmed_band <- f_elev_bands(data_in = tmed, func_aggr = "mean")
+smea_band <- f_elev_bands(data_in = smea, func_aggr = "mean")
+smed_band <- f_elev_bands(data_in = smed, func_aggr = "mean")
+vmea_band <- f_elev_bands(data_in = vmea, func_aggr = "sum")
+vmed_band <- f_elev_bands(data_in = vmed, func_aggr = "sum")
+sslo_band <- f_elev_bands(data_in = sslo, func_aggr = "mean")
+vslo_band <- f_elev_bands(data_in = vslo, func_aggr = "sum")
+vdi_mea_band <- f_elev_bands(data_in = vdi_mea, func_aggr = "sum")
+vdi_slo_band <- f_elev_bands(data_in = vdi_slo, func_aggr = "sum")
+
+#Melt compensation: Trend snow volume diff over elevation
+melt_comp <- apply(vdi_slo_band, 1, sum_na)
+
+
+plot_test <- vdi_slo_band
+
+x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+
+my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                             "yellow2","gold", "orange2", "orangered2"))(200)
+
+n_max <- round(abs(max_na(plot_test[, ])) / (max_na(plot_test[, ]) + abs(min_na(plot_test[, ]))), digits = 2) * 200
+n_min <- 200 - n_max
+
+cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+my_col <- c(cols_min, cols_max)
+
+my_bre <- seq(min_na(plot_test), max_na(plot_test), length.out = length(my_col)+1)
+
+par(mar = c(1.6, 3, 0.6, 0))
+
+layout(matrix(c(1,1,1,1,1,1,1,2),
+              1, 8), widths=c(), heights=c())
+
+image(x = 1:365,
+      y = my_elev_bands[-length(my_elev_bands)],
+      z = plot_test, col =my_col, breaks = my_bre,
+      ylab = "", xlab = "", axes = F)
+axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+     col = "black", col.axis = "black", tck = -0.06)#plot ticks
+axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+     col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+mtext("Elevation [m]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+box()
+
+par(mar = c(1.6, 0.5, 0.6, 2.7))
+
+image_scale(as.matrix(plot_test), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+mtext("Snow water equ. [m]", side = 4, line = 1.5, cex = 0.8)
+
+box()
+
+#Plot: melt compensation
+par(mfrow = c(1, 1))
+par(mar = c(1.6, 3.0, 0.6, 0.6))
+
+x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+x_axis_tic <- c(16,46,74,105,135,166,196,227,258,288,319,349,380)-15
+
+plot(smoothFFT(melt_comp, sd = 5), type = "l", col = "black", axes = F,
+     ylab = "", xlab = "", lwd = 2, ylim = rev(range(smoothFFT(melt_comp, sd = 5))))
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = x_axis_tic, lty = "dashed", lwd = 0.5)
+axis(1, at = x_axis_tic, c("","","","","","","","","","","","",""), tick = TRUE,
+     col = "black", col.axis = "black", tck = -0.06)#plot ticks
+axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+     col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+mtext("Trend total snow melt volume [m³/dec]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+
+box(lwd = 0.7)
+
+
+
+
 
 #data_visualization----
 
@@ -647,7 +866,7 @@ dev.off()
 
 
 
-#u2mc----
+#melt_compens_calc----
 
 #calculate snow volume
 
@@ -661,7 +880,6 @@ length(glacier_points)
 snovu[ , glacier_points] <- NA
 
 snovu <- snovu[, order(elevs)] #order columns by elevation of grip points
-hist(meta_grid$alt)
 
 min_na(meta_grid$alt)
 max_na(meta_grid$alt)
@@ -715,7 +933,6 @@ for(i in 1:(length(snow_bands) - 1)){
 }
 
 #Snow accumulation and melt water outflow
-
 sv_diff <- function(snow_volume_in){
   
   sv_diff <- c(NA, diff(snow_volume_in))
@@ -787,7 +1004,7 @@ snovu_med <- foreach(i = 1:ncol(snovu_range), .combine = 'cbind') %dopar% {
 colnames(snovu_med) <- snow_bands[-length(snow_bands)]
 
 #Average snow volume (mean per elevation band)
-print(paste(Sys.time(),"Average (median) snow volume"))
+print(paste(Sys.time(),"Average (mean) snow volume"))
 snovu_mea_med <- foreach(i = 1:ncol(snovu_range_mea), .combine = 'cbind') %dopar% {
   
   f_med(snovu_range_mea[, i])
@@ -835,7 +1052,7 @@ colnames(snovu_dif_slo) <- snow_bands[-length(snow_bands)]
 # snovu_dif_slo[which(snovu_dif_sum > 0)] <- snovu_dif_slo[which(snovu_dif_sum > 0)] * -1
 
 #reverse trend sing to show effect on discharge
-snovu_dif_slo <- snovu_dif_slo * -1
+# snovu_dif_slo <- snovu_dif_slo * -1
 
 # #Trends during accumulation phase to NA
 # snovu_dif_slo[which(snovu_dif_sum < 0)] <- NA
@@ -852,45 +1069,28 @@ plot(snovu_mea_total, type = "l")
 snovu_total <- apply(snovu_med, 1, sum_na)
 # snovu_total_all <- snovu_total ; snovu_total_ear <- snovu_total ; snovu_total_lat <- snovu_total
 
-
-par(mfrow = c(1, 1))
-par(mar = c(1.8, 3.5, 1.6, 0.5))
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(16,46,74,105,135,166,196,227,258,288,319,349,380)-15
-
-plot(snovu_total_ear, type = "n", axes = F, ylab = "", xlab = "",
-     main = "Changes snow volume in catchment", xaxs = "i", yaxs = "i")
-lines(smoothFFT(snovu_total_all, sd = 4), col = "black", lwd =2)
-lines(smoothFFT(snovu_total_ear, sd = 4), col = "blue3", lwd =2)
-lines(smoothFFT(snovu_total_lat, sd = 4), col = "red3", lwd =2)
-abline(h = 0, lty = "dashed", lwd = 0.7)
-abline(v = x_axis_tic, lty = "dashed", lwd = 0.5)
-legend("topright", c("1961-1985", "1961-2010", "1986-2010"), col = c("blue3", "black", "red3"), pch = 19)
-axis(1, at = x_axis_tic, c("","","","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
-     col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-axis(2)
-mtext("Snow water equivalent [m³]", side = 2, line = 2.5)
-box(lwd = 0.7)
-
-
 #Annual cycle average total build up/melt
 snovu_dif_mea_sum <- apply(snovu_dif_mea, 1, sum_na)
 
+
+#melt_compens_vis----
 
 #Plot: Average snow depth in elevations bands
 
 x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
 x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 
-my_col <- colorRampPalette(c("grey80", viridis(9, direction = 1)[c(1,2,3,4)], "cadetblue3",
-                             "yellow2","gold", "orange2", "orangered2", "orangered4"))(200)
+# my_col <- colorRampPalette(c("grey80", viridis(9, direction = 1)[c(1,2,3,4)], "cadetblue3",
+#                              "yellow2","gold", "orange2", "orangered2", "orangered4"))(200)
+# 
+# my_col <- colorRampPalette(c("white", "yellow", "orange2", "orangered2", "orangered4"))(200)
+# my_col <- colorRampPalette(c("white", "cadetblue3", viridis(9, direction = 1)[c(4,2,1)]))(200)
+my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                             "yellow2","gold", "orange2", "orangered2"))(200)
 
-my_bre <- seq(min_na(snovu_mea_med/area_m2), max_na(snovu_mea_med/area_m2), length.out = 201)
+my_bre <- seq(min_na(snovu_mea_med/area_m2), max_na(snovu_mea_med/area_m2), length.out = length(my_col)+1)
 
-par(mar = c(1.6, 3.5, 1.6, 0))
+par(mar = c(1.6, 3, 0.6, 0))
 
 layout(matrix(c(1,1,1,1,1,1,1,2),
               1, 8), widths=c(), heights=c())
@@ -899,18 +1099,20 @@ image(x = 1:365,
       # y = 1:ncol(snovu_med),
       y = snow_bands[-length(snow_bands)],
       z = snovu_mea_med/area_m2, col =my_col, breaks = my_bre,
-      ylab = "", xlab = "", axes = F, main = paste("Average snow depth in elevation band [m]"))
+      ylab = "", xlab = "", axes = F)
 axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.06)#plot ticks
 axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
      col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-axis(2)
+mtext("Elevation [m]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
 box()
 
-par(mar = c(1.6,0.5,1.6,1.7))
+par(mar = c(1.6, 0.5, 0.6, 2.7))
 
 image_scale(as.matrix(snovu_mea_med/area_m2), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
 axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+mtext("Snow water equ. [m]", side = 4, line = 1.5, cex = 0.8)
 
 box()
 
@@ -924,9 +1126,13 @@ x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 
 my_col <- colorRampPalette(c("grey80", viridis(9, direction = 1)[c(1,2,3,4)], "cadetblue3",
                              "yellow2","gold", "orange2", "orangered2", "orangered4"))(200)
-my_bre <- seq(min_na(snovu_med), max_na(snovu_med), length.out = 201)
 
-par(mar = c(1.6, 3.5, 1.6, 0))
+my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                             "yellow2","gold", "orange2", "orangered2"))(200)
+
+my_bre <- seq(min_na(snovu_med), max_na(snovu_med), length.out = length(my_col)+1)
+
+par(mar = c(1.6, 3, 0.6, 0))
 
 layout(matrix(c(1,1,1,1,1,1,1,2),
               1, 8), widths=c(), heights=c())
@@ -935,22 +1141,22 @@ image(x = 1:365,
       # y = 1:ncol(snovu_med),
       y = snow_bands[-length(snow_bands)],
       z = snovu_med, col =my_col, breaks = my_bre,
-      ylab = "", xlab = "", axes = F, main = paste("Total snow volume in elevation band [m³]"))
+      ylab = "", xlab = "", axes = F)
 axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.06)#plot ticks
 axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
      col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-axis(2)
+mtext("Elevation [m]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
 box()
 
-par(mar = c(1.6,0.5,1.6,1.7))
+par(mar = c(1.6, 0.5, 0.6, 2.7))
 
 image_scale(as.matrix(snovu_med), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
 axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+mtext("Total volume swe [m³]", side = 4, line = 1.5, cex = 0.8)
 
 box()
-
-
 
 
 #Plot: Trend total Snow volume in elevations bands
@@ -960,33 +1166,35 @@ x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 
 n_max <- round(abs(max_na(snovu_slo[, ])) / (max_na(snovu_slo[, ]) + abs(min_na(snovu_slo[, ]))), digits = 2) * 200
 n_min <- 200 - n_max
+
 cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
-cols_max <- colorRampPalette(c("grey90", "yellow2","gold", "orange3"))(n_max)
+cols_max <- colorRampPalette(c("grey90", "yellow2", "gold"))(n_max)
 cols_0 <- c(cols_min, cols_max)
 
-par(mar = c(1.6, 3.5, 1.6, 0))
+my_bre <- seq(min_na(snovu_slo), max_na(snovu_slo), length.out = length(cols_0)+1)
+
+par(mar = c(1.6, 3, 0.6, 0))
 
 layout(matrix(c(1,1,1,1,1,1,1,2),
               1, 8), widths=c(), heights=c())
 
-# my_col <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90", 
-#                              "yellow2","gold", "orange2", "orangered2", "orangered4"))(100)
-my_bre <- seq(min_na(snovu_slo), max_na(snovu_slo), length.out = 201)
 image(x = 1:365,
       y = snow_bands[-length(snow_bands)],
       z = snovu_slo, col = cols_0, breaks = my_bre,
-      ylab = "", xlab = "", axes = F, main = paste("Trend total snow volume [m³/dec]"))
+      ylab = "", xlab = "", axes = F)
 axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.06)#plot ticks
 axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
      col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-axis(2)
+mtext("Elevation [m]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
 box()
 
-par(mar = c(1.6,0.5,1.6,1.7))
+par(mar = c(1.6, 0.5, 0.6, 2.7))
 
 image_scale(as.matrix(snovu_slo), col = cols_0, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
 axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+mtext("Total volume swe [m³]", side = 4, line = 1.5, cex = 0.8)
 
 box()
 
@@ -1002,13 +1210,13 @@ x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 #                              "yellow2","gold", "orange2", "orangered2", "orangered4"))(200)
 n_max <- round(abs(max_na(snovu_dif_mea[, ])) / (max_na(snovu_dif_mea[, ]) + abs(min_na(snovu_dif_mea[, ]))), digits = 2) * 200
 n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
-cols_max <- colorRampPalette(c("grey90", "yellow2","gold", "orange2", "orangered2", "orangered4"))(n_max)
+cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
+cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
 my_col <- c(cols_min, cols_max)
 
 my_bre <- seq(min_na(snovu_dif_mea), max_na(snovu_dif_mea), length.out = 201)
 
-par(mar = c(1.6, 3.5, 1.6, 0))
+par(mar = c(1.6, 3, 0.6, 0))
 
 layout(matrix(c(1,1,1,1,1,1,1,2),
               1, 8), widths=c(), heights=c())
@@ -1017,18 +1225,20 @@ image(x = 1:365,
       # y = 1:length(elevs_ord),
       y = snow_bands[-length(snow_bands)],
       z = snovu_dif_mea, col =my_col, breaks = my_bre,
-      ylab = "", xlab = "", axes = F, main = paste("Average total snow build up/melt between consecutive days [m³]"))
+      ylab = "", xlab = "", axes = F)
 axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.06)#plot ticks
 axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
      col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-axis(2)
+mtext("Elevation [m]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
 box()
 
-par(mar = c(1.6,0.5,1.6,1.7))
+par(mar = c(1.6, 0.5, 0.6, 2.7))
 
 image_scale(as.matrix(snovu_dif_mea), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
 axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+mtext("Snow volume diff. [m³]", side = 4, line = 1.5, cex = 0.8)
 
 box()
 
@@ -1064,13 +1274,13 @@ x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 #                              "yellow2","gold", "orange2", "orangered2", "orangered4"))(200)
 n_max <- round(abs(max_na(snovu_dif_slo[, ])) / (max_na(snovu_dif_slo[, ]) + abs(min_na(snovu_dif_slo[, ]))), digits = 2) * 200
 n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
-cols_max <- colorRampPalette(c("grey90", "yellow2","gold", "orange3", "orangered4", "orangered2"))(n_max)
+cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
+cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
 my_col <- c(cols_min, cols_max)
 
-my_bre <- seq(min_na(snovu_dif_slo), max_na(snovu_dif_slo), length.out = 201)
+my_bre <- seq(min_na(snovu_dif_slo), max_na(snovu_dif_slo), length.out = length(my_col)+1)
 
-par(mar = c(1.6, 3.5, 1.6, 0))
+par(mar = c(1.6, 3, 0.6, 0))
 
 layout(matrix(c(1,1,1,1,1,1,1,2),
               1, 8), widths=c(), heights=c())
@@ -1078,18 +1288,20 @@ layout(matrix(c(1,1,1,1,1,1,1,2),
 image(x = 1:365,
       y = snow_bands[-length(snow_bands)],
       z = snovu_dif_slo, col = my_col, breaks = my_bre,
-      ylab = "", xlab = "", axes = F, main = paste("Snow volume diff (trend)"))
+      ylab = "", xlab = "", axes = F)
 axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.06)#plot ticks
 axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
      col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-axis(2)
+mtext("Elevation [m]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
 box()
 
-par(mar = c(1.6,0.5,1.6,1.7))
+par(mar = c(1.6, 0.5, 0.6, 2.7))
 
 image_scale(as.matrix(snovu_dif_slo), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
 axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+mtext("Trend snow volume diff. [m³/dec]", side = 4, line = 1.5, cex = 0.8)
 
 box()
 
@@ -1097,32 +1309,36 @@ box()
 #Plot: Upward melt compensation
 
 par(mfrow = c(1, 1))
-par(mar = c(1.8, 3.5, 1.6, 0.5))
+par(mar = c(1.6, 3.0, 0.6, 0.6))
 
 x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
 x_axis_tic <- c(16,46,74,105,135,166,196,227,258,288,319,349,380)-15
 
-plot(smoothFFT(umc, sd = 2), type = "l", col = "red3", axes = F,
-     ylab = "", xlab = "", main = "Net snow melt amount")
+plot(smoothFFT(umc, sd = 5), type = "l", col = "black", axes = F,
+     ylab = "", xlab = "", lwd = 2, ylim = rev(range(smoothFFT(umc, sd = 5))))
 abline(h = 0, lty = "dashed", lwd = 0.7)
 abline(v = x_axis_tic, lty = "dashed", lwd = 0.5)
 axis(1, at = x_axis_tic, c("","","","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.06)#plot ticks
 axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
      col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-axis(2)
+mtext("Trend total snow melt volume [m³/dec]", side = 2, line = 1.5, cex = 0.8)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+
 box(lwd = 0.7)
+
+
 
 #Plot: Elevation distribution in basin
 
 par(mfrow = c(1, 1))
-par(mar = c(2.5, 4.5, 1.6, 0.5))
+par(mar = c(2.5, 2.5, 0.6, 0.6))
 
-min_na(meta_grid$alt)
-max_na(meta_grid$alt)
-elev_breaks <- seq(250, 3650, 100)
-
-hist(elevs, breaks = elev_breaks, col = "grey50", main = "Elevation distribution in catchment")
+hist(dem_ele, nclass = 50, col = "grey50", main = "", axes = F, xlab = "", ylab = "")
+axis(1, mgp=c(3, 0.15, 0), tck = -0.01)
+axis(2, mgp=c(3, 0.15, 0), tck = -0.01)
+mtext("Frequency", side = 2, line = 1.4)
+mtext("Elevation", side = 1, line = 1.4)
 box(lwd = 0.7)
 
 

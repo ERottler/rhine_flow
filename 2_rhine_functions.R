@@ -201,6 +201,22 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     if(method_quant == "gev"){
       params <- lmr2par(input_data$values, type = "gev")
       quant_thres <- par2qua(para = params, f = quant_in)
+      
+      #Clip selected time period
+      input_data_qua <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= 1869, ]
+      input_data_qua <- input_data_qua[as.numeric(format(input_data$date,'%Y')) <= 2017, ]
+      
+      #Fill possible gaps
+      start_date_qua <- as.POSIXct(strptime(paste0("1869","-01-01"), "%Y-%m-%d", tz="UTC"))
+      end_date_qua   <- as.POSIXct(strptime(paste0("2017","-12-31"),   "%Y-%m-%d", tz="UTC"))
+      full_date_qua  <- seq(start_date, end_date, by="day")
+      
+      input_data_qua <- data.frame(dates  = full_date,
+                                   values = with(input_data_qua, value[match(as.Date(full_date), as.Date(date))])
+      )
+      
+      params <- lmr2par(input_data_qua$values, type = "gev")
+      quant_thres <- par2qua(para = params, f = quant_in)
     }
     
     f_quant_likelihood <- function(data_in){
@@ -2160,8 +2176,4 @@ f_disco <- function(rain_in, disc_in, rain_date, disc_date, start_year, end_year
   return(analy_out)
   
 }
-
-
-
-
 
