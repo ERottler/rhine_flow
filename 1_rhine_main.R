@@ -26,7 +26,7 @@ file_dir <- "d:/nrc_user/rottler/toErwin1/6435060/"
 start_year <- 1950
 end_year <- 2014
 window_width <- 30 
-n_cores <- 50 #number of cores used for parallel computing
+n_cores <- 40 #number of cores used for parallel computing
 cover_thres <- 10/60 #minimum fraction of NA values at trend computing
 
 #basin parameter
@@ -40,8 +40,8 @@ do_snow_sim_vis <- T #visualization basin output with snow simulation
 # library(rEchseSnow)
 snow_params <- read.table(paste0(base_dir, "R/rhine_flow/snow_param.txt"), header = T, sep = ";")
 snow_exe <- paste0(base_dir, "snow_sim/snowAlone/snowAlone/Debug/snowAlone.exe")
-basin_sel <- "alp_rhine"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
-basin_stn <- "Diepoldsau"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
+basin_sel <- "basel"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
+basin_stn <- "Basel_Rheinhalle"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
 high_stat_thresh <- 1900
 middle_stat_thresh <- 900
 
@@ -71,22 +71,22 @@ wt_low <- 1:6 #selected low weather types for trend analysis
 wt_hig <- 25:26 #selected high weather types for trend analysis
 wt_slo <-  "fixed" #fixed, flexi
 
-#emd parameter
-data_sel_emd <- "basel_disc"  #basel_disc, basel_temp
-sta_yea_emd <- 1950
-end_yea_emd <- 2014
-do_ma_emd <- T
-do_na_fil_emd <- T
-do_center_emd <- T
-number_trials <- 1000
-noise_str <- 0.5
+# #emd parameter
+# data_sel_emd <- "basel_disc"  #basel_disc, basel_temp
+# sta_yea_emd <- 1950
+# end_yea_emd <- 2014
+# do_ma_emd <- T
+# do_na_fil_emd <- T
+# do_center_emd <- T
+# number_trials <- 1000
+# noise_str <- 0.5
 
 #load functions
 source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
 
 #Make cluster for parallel computing
 my_clust <- makeCluster(n_cores)
-clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow))
+clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow, sp, raster))
 registerDoParallel(my_clust)
 
 #analy_basin----

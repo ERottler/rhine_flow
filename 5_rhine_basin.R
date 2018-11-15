@@ -24,37 +24,37 @@ if(do_basin_prep){
                       +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
   
   #Load DEM
-  dem = raster(paste0(file_dir, "morph/dem.asc"), crs = epsg3035)
-  # dem = raster(paste0(base_dir, "data/basins_shp/eu_dem_500_fil.tif"))
+  # dem = raster(paste0(file_dir, "morph/dem.asc"), crs = epsg3035)
+  dem = raster(paste0(base_dir, "data/basins_shp/eu_dem_500_fil.tif"))
   
   #Load basin boundaries (shapefile delineated beforehand using Q-GIS)
   my_basin <- paste0(base_dir, "data/basins_shp/", basin_sel, ".shp")
   basin <- rgdal::readOGR(dsn = my_basin)
   
-  #Transform projection WGS84
-  basin_84 <- sp::spTransform(basin, CRS = crswgs84)
-  dem_84    <- raster::projectRaster(dem, crs = crswgs84)
-  
-  #Area of basin in m2
-  area_m2 <- area(basin_84)
-  
   #corp DEM sub-basin area
-  dem_84_cro <- raster::crop(dem_84, extent(basin_84))
-  dem_84_sub <- mask(dem_84_cro, basin_84)
+  dem_cro <- raster::crop(dem, extent(basin))
+  dem_sub <- mask(dem_cro, basin)
   
   #get elevations of cells cropped dem
-  dem_ele_NA <- dem_84_sub@data@values
+  dem_ele_NA <- dem_sub@data@values
   dem_ele <- dem_ele_NA[!is.na(dem_ele_NA)]
-  dem_ele_50 <- med_na(dem_ele)
-  dem_ele_mea <- alptempr::mea_na(dem_ele)
-  dem_ele_25 <- stats::quantile(dem_ele, probs = 0.25)
-  dem_ele_75 <- stats::quantile(dem_ele, probs = 0.75)
+  
+  #Area of basin in m2
+  area_m2 <- area(basin)
+  
+  # plot(dem_84_sub)
+  # plot(basin_84, add =T)
+  # hist(dem_ele, nclass = 100)
+  
+  #Transform projection WGS84
+  basin_84 <- sp::spTransform(basin, CRS = crswgs84)
+  # dem_84    <- raster::projectRaster(dem, crs = crswgs84)
 
   #get lat/lon/time of .nc meteo data
   lon <- ncdf4::ncvar_get(nc_temp, varid = "lon2D")
   lat <- ncdf4::ncvar_get(nc_temp, varid = "lat2D")
   date <- as.Date(as.character(ncdf4.helpers::nc.get.time.series(nc_temp, time.dim.name = "time")))
-  
+
   #define date start index and count for extraction from .nc file
   date_min_index <- which(date == paste0(start_year, "-01-01"))
   date_max_index <- which(date == paste0(end_year, "-12-31"))
@@ -65,10 +65,10 @@ if(do_basin_prep){
   basin_coords <- extractCoords(basin_84)
   
   #get min/max of lat/lon for extraction from .nc file
-  lon_min <- min(basin_coords[ ,1]) - 0.1
-  lon_max <- max(basin_coords[ ,1]) + 0.1
-  lat_min <- min(basin_coords[ ,2]) - 0.1
-  lat_max <- max(basin_coords[ ,2]) + 0.1
+  lon_min <- min(basin_coords[ ,1]) - 0.15
+  lon_max <- max(basin_coords[ ,1]) + 0.15
+  lat_min <- min(basin_coords[ ,2]) - 0.15
+  lat_max <- max(basin_coords[ ,2]) + 0.15
   
   lon_min_index <- which(abs(lon - lon_min) == min(abs(lon - lon_min)), arr.ind = T)[1,1]
   lat_min_index <- which(abs(lat - lat_max) == min(abs(lat - lat_max)), arr.ind = T)[1,2]
@@ -103,21 +103,23 @@ if(do_basin_prep){
   lat2D <- lat[lon_min_index : (lon_min_index+lon_count-1), lat_min_index : (lat_min_index+lat_count-1)]
   
   #spatial grip points from lat/lon info
-  grid_points_cube <-  sp::SpatialPoints(data.frame(lon = c(lon2D), lat = c(lat2D)), proj4string =  crswgs84)
-  
+  grid_points_cube_84 <-  sp::SpatialPoints(data.frame(lon = c(lon2D), lat = c(lat2D)), proj4string =  crswgs84)
+  grid_points_cube     <- sp::spTransform(grid_points_cube_84, CRS = crs(basin, asText = T))
+
   #get grid points inside watershed
-  inside <- !is.na(sp::over(grid_points_cube, as(basin_84, "SpatialPolygons")))
+  inside <- !is.na(sp::over(grid_points_cube, as(basin, "SpatialPolygons")))
   grid_points <- grid_points_cube[which(inside == T)]
-  
+  grid_points_84 <- sp::spTransform(grid_points, CRS = crs(grid_points_cube_84, asText = T))
+
   #get index in cube from points inside sub-basin
-  lon_cube_index <- sapply(grid_points@coords[,1], get_cube_index_lon)
-  lat_cube_index <- sapply(grid_points@coords[,2], get_cube_index_lat)
+  cube_index_col <- sapply(grid_points_84@coords[,1], get_cube_index_col)
+  cube_index_row <- sapply(grid_points_84@coords[,1], get_cube_index_row)
   
   #get time series from grid points inside sub-basin
   #temperature
-  for (i in 1:length(lon_cube_index)) {
+  for (i in 1:length(cube_index_col)) {
     
-    temp_sing <- temps_cube[lon_cube_index[i], lat_cube_index[i], ]
+    temp_sing <- temps_cube[cube_index_col[i], cube_index_row[i], ]
     
     if(i == 1){
       temps <- temp_sing
@@ -126,9 +128,9 @@ if(do_basin_prep){
     }
   }
   #precipitation
-  for (i in 1:length(lon_cube_index)) {
+  for (i in 1:length(cube_index_col)) {
     
-    precs_sing <- precs_cube[lon_cube_index[i], lat_cube_index[i], ]
+    precs_sing <- precs_cube[cube_index_col[i], cube_index_row[i], ]
     
     if(i == 1){
       precs <- precs_sing
@@ -137,9 +139,9 @@ if(do_basin_prep){
     }
   }
   #evapotranspiration
-  for (i in 1:length(lon_cube_index)) {
+  for (i in 1:length(cube_index_col)) {
 
-    petr_sing <- petr_cube[lon_cube_index[i], lat_cube_index[i], ]
+    petr_sing <- petr_cube[cube_index_col[i], cube_index_row[i], ]
 
     if(i == 1){
       petrs <- petr_sing
@@ -152,10 +154,17 @@ if(do_basin_prep){
   temp_basin <- apply(temps, 1, med_na)
   prec_basin <- apply(precs, 1, mea_na) 
   petr_basin <- apply(petrs, 1, med_na) 
-  
-  #elevation of grip points from DEM
-  elevs <- raster::extract(dem_84, grid_points)
+
+  #Average mean snow water equivalent
+  elevs <- foreach(i = 1:length(grid_points), .combine = 'c') %dopar% {
+    
+    elev_buff(i) #[m]
+    
+  }
   elevs_ord <- elevs[order(elevs)]
+  
+  # #elevation of grip points from DEM
+  # elevs <- raster::extract(dem, grid_points)
   
   #Syntetic meta data info for grid points to use alptempr functions
   HS_amount <- length(which(elevs_ord > high_stat_thresh))
@@ -167,6 +176,7 @@ if(do_basin_prep){
                           category = c(rep("low", LS_amount), rep("middle", MS_amount), rep("high", HS_amount)),
                           data_qual = rep("quality-checked", length(grid_points)),
                           clim_reg = rep("Jura", length(grid_points)))
+  
   
   #Radiation data for snow simulations
   
@@ -188,6 +198,131 @@ if(do_basin_prep){
   radi_mea_seri <- rep( c(radi_mea_smo, radi_mea_smo[365], rep(radi_mea_smo, 3)), 50)[1:nrow(temps)]
   
 }
+
+
+#Downscale temperature grid
+#using simple lapse-rate based approach
+#lapse rate in basin on daily bases used to addapt
+
+#Lapse rate on daily basis from all data points selected
+f_sens_slope <- function(data_in){sens_slope(data_in = data_in, cover_thresh = 0.9)}
+
+temps_ord <- temps[, order(elevs)]
+
+lapse_temp <- foreach(i = 1:nrow(temps_ord), .combine = 'c') %dopar% {
+  
+  f_sens_slope(temps_ord[i, ]) #[°C/m]
+  
+}
+
+#New grid points at 1 km resolution
+
+down_points <- function(lon_lat_point_in){
+  
+  res_new <- 1000 # new desirted resolution in [m]
+  
+  d_00 <- lon_lat_point_in
+  d_01 <- d_00 + res_new * 1
+  d_02 <- d_00 + res_new * 2
+  d_03 <- d_00 - res_new * 1
+  d_04 <- d_00 - res_new * 1
+  d_05 <- d_00
+  d_05[1] <- d_05[1] + res_new * 1
+  d_05[2] <- d_05[2] - res_new * 1
+  d_06 <- d_00
+  d_06[1] <- d_06[1] + res_new * 2
+  d_06[2] <- d_06[2] - res_new * 2
+  d_07 <- d_00
+  d_07[1] <- d_07[1] - res_new * 1
+  d_07[2] <- d_07[2] + res_new * 1
+  d_08 <- d_00
+  d_08[1] <- d_08[1] - res_new * 2
+  d_08[2] <- d_08[2] + res_new * 2
+  d_09 <- d_00
+  d_09[1] <- d_09[1] + res_new * 1
+  d_09[2] <- d_07[2] + res_new * 0
+  d_10 <- d_00
+  d_10[1] <- d_10[1] + res_new * 2
+  d_10[2] <- d_10[2] + res_new * 0
+  d_11 <- d_00
+  d_11[1] <- d_11[1] - res_new * 1
+  d_11[2] <- d_11[2] + res_new * 0
+  d_12 <- d_00
+  d_12[1] <- d_12[1] - res_new * 2
+  d_12[2] <- d_12[2] + res_new * 0
+  d_13 <- d_00
+  d_13[1] <- d_13[1] + res_new * 0
+  d_13[2] <- d_13[2] - res_new * 1
+  d_14 <- d_00
+  d_14[1] <- d_14[1] + res_new * 0
+  d_14[2] <- d_14[2] - res_new * 2
+  d_15 <- d_00
+  d_15[1] <- d_15[1] + res_new * 0
+  d_15[2] <- d_15[2] + res_new * 1
+  d_16 <- d_00
+  d_16[1] <- d_16[1] + res_new * 0
+  d_16[2] <- d_16[2] + res_new * 2
+  d_17 <- d_00
+  d_17[1] <- d_17[1] + res_new * 2
+  d_17[2] <- d_17[2] + res_new * 1
+  d_18 <- d_00
+  d_18[1] <- d_18[1] + res_new * 2
+  d_18[2] <- d_18[2] - res_new * 1
+  d_19 <- d_00
+  d_19[1] <- d_19[1] + res_new * 1
+  d_19[2] <- d_19[2] - res_new * 2
+  d_20 <- d_00
+  d_20[1] <- d_20[1] - res_new * 1
+  d_20[2] <- d_20[2] - res_new * 2
+  d_21 <- d_00
+  d_21[1] <- d_21[1] - res_new * 2
+  d_21[2] <- d_21[2] - res_new * 1
+  d_22 <- d_00
+  d_22[1] <- d_22[1] - res_new * 2
+  d_22[2] <- d_22[2] + res_new * 1
+  d_23 <- d_00
+  d_23[1] <- d_23[1] - res_new * 1
+  d_23[2] <- d_23[2] + res_new * 2
+  d_24 <- d_00
+  d_24[1] <- d_24[1] + res_new * 1
+  d_24[2] <- d_24[2] + res_new * 2
+  
+  d_points_raw <- rbind(d_00, d_01, d_02, d_03, d_04, d_05, d_06, d_07, d_08, d_09, d_10, d_11, d_12,
+                        d_13, d_14, d_15, d_16, d_17, d_18, d_19, d_20, d_21, d_22, d_23, d_24)
+  
+  
+  #spatial grip points from lat/lon info
+  d_points <- sp::SpatialPoints(data.frame(lon = d_points_raw[, 1], lat = d_points_raw[, 2]), proj4string =  crs(basin))
+  
+  return(d_points)
+  
+}
+
+d_points <- down_points(grid_points@coords[1, ])
+
+d_points_elevs <- raster::extract(dem, d_points)
+
+d_points_elevs_dif <- d_points_elevs - elevs[1]
+
+f_temps_laps <- function(data_in){
+  
+  f_laps_mod <- function(index_in){
+    
+    data_laps <- data_in + lapse_temp* d_points_elevs_dif[index_in]
+    return(data_laps)
+    
+  }
+  
+  test <- sapply(1:length(d_points_elevs_dif), f_laps_mod)
+}
+
+temps_d <- foreach(i = 1:5, .combine = 'cbind') %dopar% {
+  
+  f_temps_laps(temps[, 1]) #[°C]
+  
+}
+
+
 
 #snow_simu----
 if(F){
@@ -603,7 +738,7 @@ if(do_basin_calc){
 min_na(meta_grid$alt)
 max_na(meta_grid$alt)
 
-my_elev_bands <- c(seq(400, 3000, 50), 3800)
+my_elev_bands <- seq(250, 3200, 50)
 
 f_elev_bands <- function(data_in, elev_bands = my_elev_bands, 
                          func_aggr = "medi", meta_dat = meta_grid){
@@ -650,14 +785,13 @@ vmea_band <- f_elev_bands(data_in = vmea, func_aggr = "sum")
 vmed_band <- f_elev_bands(data_in = vmed, func_aggr = "sum")
 sslo_band <- f_elev_bands(data_in = sslo, func_aggr = "mean")
 vslo_band <- f_elev_bands(data_in = vslo, func_aggr = "sum")
-vdi_mea_band <- f_elev_bands(data_in = vdi_mea, func_aggr = "sum")
+vdi_mea_band <- f_elev_bands(data_in = vdi_mea, func_aggr = "mean")
 vdi_slo_band <- f_elev_bands(data_in = vdi_slo, func_aggr = "sum")
 
 #Melt compensation: Trend snow volume diff over elevation
 melt_comp <- apply(vdi_slo_band, 1, sum_na)
 
-
-plot_test <- vdi_slo_band
+plot_test <- smea_band
 
 x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
 x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
@@ -698,6 +832,15 @@ axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
 mtext("Snow water equ. [m]", side = 4, line = 1.5, cex = 0.8)
 
 box()
+
+
+
+
+
+hist(elevs, breaks = my_elev_bands)
+
+
+
 
 #Plot: melt compensation
 par(mfrow = c(1, 1))

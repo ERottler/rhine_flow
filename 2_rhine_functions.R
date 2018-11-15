@@ -18,24 +18,25 @@ extractCoords <- function(sp_df){
 }
 
 #get index in cube from points inside sub-basin
-get_cube_index_lon <- function(val_in, lons_in = lon2D, lats_in =lat2D, lon_or_lat = "lon"){
-  if(lon_or_lat == "lon"){
-    index_out <- which(lons_in == val_in, arr.ind = T)[1,1]
+
+get_cube_index_col <- function(val_in, lons_in = lon2D, col_or_row = "col"){
+  if(col_or_row == "col"){
+    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,1]
   }
   
-  if(lon_or_lat == "lat"){
-    index_out <- which(lats_in == val_in, arr.ind = T)[1,2]
+  if(col_or_row == "row"){
+    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,2]
   }
   
   return(index_out)
 }
-get_cube_index_lat <- function(val_in, lons_in = lon2D, lats_in =lat2D, lon_or_lat = "lat"){
-  if(lon_or_lat == "lon"){
-    index_out <- which(lons_in == val_in, arr.ind = T)[1,1]
+get_cube_index_row <- function(val_in, lons_in = lon2D, col_or_row = "row"){
+  if(col_or_row == "col"){
+    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,1]
   }
   
-  if(lon_or_lat == "lat"){
-    index_out <- which(lats_in == val_in, arr.ind = T)[1,2]
+  if(col_or_row == "row"){
+    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,2]
   }
   
   return(index_out)
@@ -46,7 +47,8 @@ get_cube_index_lat <- function(val_in, lons_in = lon2D, lats_in =lat2D, lon_or_l
 #trend statistics: basic function
 dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analys, quant_in = .95,
                     method_quant = "gev", do_moving_average = T, window_width = 30, 
-                    cover_thresh = 0.2, above_below_quant = "above", w_allign = "center"){
+                    cover_thresh = 0.2, above_below_quant = "above", w_allign = "center", quant_annual = F,
+                    break_day = 0){
   
   input_data_full <- data.frame(date = date, value = disc)
   
@@ -75,11 +77,24 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   colnames(data_day) <- c("year", days)
   data_day[ ,1] <- start_year:end_year
   
-  for(i in 0:(length(start_year:end_year)-1)) {
+  if(break_day > 0){
     
-    data_day[i+1, 2:366] <- input_data$values[(i*365+1):((i+1)*365)]
+    for(i in 0:(length(start_year:end_year) - 2)) {
+      
+      data_day[i+1, 2:366] <- input_data$values[(i*365 + 1 + break_day):((i+1)*365 + break_day)]
+      
+    }
     
+    data_day <- data_day[-nrow(data_day),]
+  }else{
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day[i+1, 2:366] <- input_data$values[(i*365+1):((i+1)*365)]
+      
+    }
   }
+
   
   # if(method_analys == "mean"){
   #   f_mean <- function(data_in){mean(data_in, na.rm = T)}
@@ -169,8 +184,18 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   if(method_analys == "quantile"){
     
     if(method_quant == "empirical"){
+      
       f_quan <- function(data_in){
-        quantile(data_in, probs = quant_in, na.rm = T)}
+        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
+          quant_out <- NA}else{
+            if(length(unique(data_in)) <= 1){
+              quant_out <- unique(data_in)
+            }else{
+              quant_out <- quantile(data_in, probs = quant_in, type = 8,na.rm = T)}}
+        
+        return(quant_out)
+      }
+      
     }
     
     if(method_quant == "gev"){
@@ -188,35 +213,62 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
       }
     }
     
-    res <- apply(data_day[,-1], 2, f_quan)
-    
+    if(quant_annual){
+      res <- apply(data_day[,-1], 1, f_quan)
+    }else{
+      res <- apply(data_day[,-1], 2, f_quan)
+    }
   }
   
   if(method_analys == "quantile_prob"){
     
     if(method_quant == "empirical"){
-      quant_thres <- quantile(input_data$values, probs = quant_in, na.rm = T) #selected quantile
+      
+      f_quan <- function(data_in){
+        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
+          quant_out <- NA}else{
+            if(length(unique(data_in)) <= 1){
+              quant_out <- unique(data_in)
+            }else{
+              quant_out <- quantile(data_in, probs = quant_in, type = 8, na.rm = T)}}
+        
+        return(quant_out)
+      }
+      
+      quant_thres <- f_quan(input_data$values)
     }
     
     if(method_quant == "gev"){
-      params <- lmr2par(input_data$values, type = "gev")
-      quant_thres <- par2qua(para = params, f = quant_in)
       
-      #Clip selected time period
-      input_data_qua <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= 1869, ]
-      input_data_qua <- input_data_qua[as.numeric(format(input_data$date,'%Y')) <= 2017, ]
+      f_quan <- function(data_in){
+        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
+          quant_out <- NA}else{
+            if(length(unique(data_in)) <= 1){
+              quant_out <- unique(data_in)
+            }else{
+              params <- lmr2par(data_in, type = "gev")
+              if(is.null(params)){#check if parameters were calculated
+                quant_out <- median(data_in)}else{
+                  quant_out <- par2qua(para = params, f = quant_in)}}}
+        return(quant_out)
+      }
       
-      #Fill possible gaps
-      start_date_qua <- as.POSIXct(strptime(paste0("1869","-01-01"), "%Y-%m-%d", tz="UTC"))
-      end_date_qua   <- as.POSIXct(strptime(paste0("2017","-12-31"),   "%Y-%m-%d", tz="UTC"))
-      full_date_qua  <- seq(start_date, end_date, by="day")
+      quant_thres <- f_quan(input_data$values)
       
-      input_data_qua <- data.frame(dates  = full_date,
-                                   values = with(input_data_qua, value[match(as.Date(full_date), as.Date(date))])
-      )
-      
-      params <- lmr2par(input_data_qua$values, type = "gev")
-      quant_thres <- par2qua(para = params, f = quant_in)
+      # #Clip selected time period
+      # input_data_qua <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= 1950, ]
+      # input_data_qua <- input_data_qua[as.numeric(format(input_data$date,'%Y')) <= 2014, ]
+      # 
+      # #Fill possible gaps
+      # start_date_qua <- as.POSIXct(strptime(paste0("1869","-01-01"), "%Y-%m-%d", tz="UTC"))
+      # end_date_qua   <- as.POSIXct(strptime(paste0("2017","-12-31"),   "%Y-%m-%d", tz="UTC"))
+      # full_date_qua  <- seq(start_date, end_date, by="day")
+      # 
+      # input_data_qua <- data.frame(dates  = full_date,
+      #                              values = with(input_data_qua, value[match(as.Date(full_date), as.Date(date))])
+      # )
+      # 
+      # quant_thres <- f_quan(input_data$values)
     }
     
     f_quant_likelihood <- function(data_in){
@@ -2177,3 +2229,28 @@ f_disco <- function(rain_in, disc_in, rain_date, disc_date, start_year, end_year
   
 }
 
+#get mean elevation of 5 km square buffer around grid points
+elev_buff <- function(point_index, radius = 2500, points_in = grid_points, dem_in = dem){
+  
+  y_plu <-points_in[point_index]@bbox[2,1] + radius
+  x_plu <-points_in[point_index]@bbox[1,1] + radius
+  y_min <-points_in[point_index]@bbox[2,1] - radius
+  x_min <-points_in[point_index]@bbox[1,1] - radius
+  
+  square <- cbind(x_min, y_plu, #NW corner
+                  x_plu, y_plu, #NE corner
+                  x_plu, y_min, #SW corner
+                  x_min, y_min, #SW corner
+                  x_min, y_plu) #NW corner again to close polygon
+  
+  pol_sq <- Polygon(matrix(square, ncol = 2, byrow = T))
+  sq_buf <- SpatialPolygons(list(Polygons(list(pol_sq), ID = "sq_buf")), proj4string = CRS(crs(basin, asText = T)))
+  
+  
+  #get mean elevation in squared buffer...
+  
+  elev_square <- raster::extract(dem, sq_buf, fun = mean, na.rm = T)
+  
+  return(elev_square)
+  
+}
