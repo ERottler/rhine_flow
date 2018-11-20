@@ -2254,3 +2254,42 @@ elev_buff <- function(point_index, radius = 2500, points_in = grid_points, dem_i
   return(elev_square)
   
 }
+
+#calculate elevation band values
+f_elev_bands <- function(data_in, elev_bands = my_elev_bands, 
+                         func_aggr = "medi", meta_dat = elevs_d){
+  
+  for(i in 1:(length(elev_bands) - 1)){
+    # print(i)
+    data_points_range <- which(meta_dat > elev_bands[i] & meta_dat < elev_bands[i+1])
+    
+    if(length(data_points_range) == 1){
+      data_range_sing <- data_in[, data_points_range]
+    }else{
+      if(func_aggr == "mean"){
+        data_range_sing <- apply(data_in[, data_points_range], 1, mea_na)
+      }
+      if(func_aggr == "medi"){
+        data_range_sing <- apply(data_in[, data_points_range], 1, med_na)
+      }
+      if(func_aggr == "sum"){
+        data_range_sing <- apply(data_in[, data_points_range], 1, sum_na)
+      }
+    }
+    
+    
+    if(i == 1){
+      
+      data_range <- data_range_sing
+      
+    }else{
+      
+      data_range <- cbind(data_range, data_range_sing)
+      
+    }
+    
+  }
+  
+  return(data_range)
+  
+}

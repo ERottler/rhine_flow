@@ -26,7 +26,6 @@ file_dir <- "d:/nrc_user/rottler/toErwin1/6435060/"
 start_year <- 1950
 end_year <- 2014
 window_width <- 30 
-n_cores <- 40 #number of cores used for parallel computing
 cover_thres <- 10/60 #minimum fraction of NA values at trend computing
 
 #basin parameter
@@ -84,10 +83,10 @@ wt_slo <-  "fixed" #fixed, flexi
 #load functions
 source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
 
-#Make cluster for parallel computing
-my_clust <- makeCluster(n_cores)
-clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow, sp, raster))
-registerDoParallel(my_clust)
+# #Make cluster for parallel computing
+# my_clust <- makeCluster(n_cores)
+# clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow, sp, raster))
+# registerDoParallel(my_clust)
 
 #analy_basin----
 source(paste0(base_dir, "R/5_rhine_basin.R"))
@@ -321,6 +320,6 @@ dev.off()
 
 
 
-#stop cluster----
-stopCluster(my_clust)
+# #stop cluster----
+# stopCluster(my_clust)
 
