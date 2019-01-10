@@ -14,7 +14,7 @@ pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2,
                sp, viridis, rgdal, leaflet, ggmap, zoo, zyp, alptempr, lmomco, 
                raster, foreach, rfs, dismo, XML, parallel, doParallel, Lmoments,
                shape, devtools, pbapply, profvis, RColorBrewer, viridis, Rcpp, rEchseSnow,
-               Rlibeemd, xts)
+               Rlibeemd, xts, emdbook, rfs)
 
 #set directories
 base_dir <- "u:/RhineFlow/rhine_obs/"
@@ -39,8 +39,8 @@ do_snow_sim_vis <- T #visualization basin output with snow simulation
 # library(rEchseSnow)
 snow_params <- read.table(paste0(base_dir, "R/rhine_flow/snow_param.txt"), header = T, sep = ";")
 snow_exe <- paste0(base_dir, "snow_sim/snowAlone/snowAlone/Debug/snowAlone.exe")
-basin_sel <- "basel"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
-basin_stn <- "Basel_Rheinhalle"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
+basin_sel <- "alp_rhine"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
+basin_stn <- "Diepoldsau"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
 high_stat_thresh <- 1900
 middle_stat_thresh <- 900
 

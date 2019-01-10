@@ -5,18 +5,26 @@
 
 ###
 
-
 #parameter----
 
-vari_annu <- "disc" # disc, rain, tem0
-stat_annu <- "Cochem" # Basel_Rheinhalle_2 (1869), BAS (1864), BER (1864), Cochem (1901), Koeln (1824)
-sta_yea_ann <- 1901
-end_yea_ann <- 2011
+vari_annu <- "rain" # disc, rain, tem0, grdc
+stat_annu <- "BAS" # Basel_Rheinhalle_2 (1869), BAS (1864), BER (1864), Cochem (1901), Koeln (1824), Diepoldsau_2,
+                         # Freudenstadt_Kniebis, Karlsruhe (1876), Hohenpeissenberg, Frankfurt_AM, SMA
+sta_yea_ann <- 1869
+end_yea_ann <- 2017
 my_break_day <- 0  # 1-Oct: 274 (Switzerland), 1-Nov: 305 (Germany)
 quants <- seq(0.01, 0.99, by = 0.01)
 quant_method <- "empirical" #empirical, gev
-rain_thres <- 5 #threshold rainy day (below or equal to NA)
+rain_thres <- 2 #threshold rainy day (below or equal set to NA)
 my_cover_threshold <- 0.999
+do_emd <- F
+my_enseble_size <- 2000
+my_noise_strength <- 0.5
+do_fft <- F
+smooth_par <- 6
+do_loess <- T
+loess_par <- 1
+do_na_fil_emd <-  F
 
 #annual_cal----
 
@@ -33,13 +41,85 @@ if(vari_annu == "disc"){
 
 if(vari_annu == "rain"){
   
+  if(stat_annu == "BER"){# Bern
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order64387/order_64387_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date   = data_emd$date,
+                           values = data_emd$rhs150d0)
+    
+    #Only rainy days
+    dat_annu$values[which(dat_annu$values <= rain_thres)] <- NA
+    
+  }
+  
   if(stat_annu == "BAS"){# Basel / Binningen
     
-    data_emd <- read.table(paste0(base_dir, "data/idaweb/order62545/order_62545_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
     data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
     dat_annu <- data.frame(date   = data_emd$date,
                            values = data_emd$rhs150d0)
 
+    #Only rainy days
+    dat_annu$values[which(dat_annu$values <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_annu == "SMA"){# Bern
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order64389/order_64389_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date   = data_emd$date,
+                           values = data_emd$rhs150d0)
+    
+    #Only rainy days
+    dat_annu$values[which(dat_annu$values <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_annu == "Freudenstadt_Kniebis"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-05_17_38/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date   = data_emd$date,
+                           values = data_emd$WERT)
+    
+    #Only rainy days
+    dat_annu$values[which(dat_annu$values <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_annu == "Karlsruhe"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-05_18_04/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date   = data_emd$date,
+                           values = data_emd$WERT)
+    
+    #Only rainy days
+    dat_annu$values[which(dat_annu$values <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_annu == "Hohenpeissenberg"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-05_18_09/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date   = data_emd$date,
+                           values = data_emd$WERT)
+    
+    #Only rainy days
+    dat_annu$values[which(dat_annu$values <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_annu == "Frankfurt_AM"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-06_14_16/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date   = data_emd$date,
+                           values = data_emd$WERT)
+    
     #Only rainy days
     dat_annu$values[which(dat_annu$values <= rain_thres)] <- NA
     
@@ -51,24 +131,41 @@ if(vari_annu == "tem0"){
   
   if(stat_annu == "BER"){# Bern / Zollikofen
     
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order62409/order_62409_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64387/order_64387_data.txt"), sep = ";", skip = 2, header = T)
     temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
     dat_annu <- data.frame(date    = temp_emd$date,
-                           values  = temp_emd$tre200d0)
+                           values  = temp_emd$ths200d0)
     
   }
   
   if(stat_annu == "BAS"){# Basel / Binningen
     
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order63459/order_63459_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), sep = ";", skip = 2, header = T)
     temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
     dat_annu <- data.frame(date    = temp_emd$date,
-                           values  = temp_emd$tre200d0)
+                           values  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_annu == "SMA"){# Zürich /Fluntern
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date    = temp_emd$date,
+                           values  = temp_emd$ths200d0)
     
   }
   
 }
 
+if(vari_annu == "grdc"){
+  
+  dat_annu <- data.frame(date   = grdc_data$date,
+                         values = grdc_data$value) #extract selected time series from data frame
+  
+}
+
+#Calculate all quantiles for each year
 f_annu_quant <- function(my_quant){
   
   dis_ana(disc = dat_annu$values, 
@@ -89,26 +186,76 @@ qannu <- foreach(k = quants, .combine = 'cbind') %dopar%{
   f_annu_quant(k)
 }
 
+#fill NA with mean of day
+if(do_na_fil_emd){
+  
+  na2mea <- function(data_in){
+    
+    data_in[which(is.na(data_in))] <- mea_na(data_in)
+    return(data_in)
+    
+  } 
+  
+  qannu <- apply(qannu, 2, na2mea)
+  
+}
 
-#Function to do CEEMDAN and return residual
-f_emd_resid <- function(data_in){
+if(do_fft){
   
-  my_emd <- Rlibeemd::ceemdan(input = data_in, ensemble_size = my_enseble_size, noise_strength = my_noise_strength)
-  emd_out <- my_emd[, ncol(my_emd)]
+  #function to smooth data with FFT
+  myFFTsmooth <- function(data_in){
+    
+    smoothFFT(data_in, sd = smooth_par)
   
-  if(length(emd_out) < 1){
-    emd_out <- rep(NA, length(data_in))
   }
   
-  return(emd_out)
+  qannu_resid <- foreach::foreach(i = 1:ncol(qannu), .combine = 'cbind') %dopar% {
+    
+    myFFTsmooth(qannu[, i])
+    
+  }
+  
+}
+if(do_emd){
+  
+  #Function to do CEEMDAN and return residual
+  f_emd_resid <- function(data_in){
+    
+    my_emd <- Rlibeemd::ceemdan(input = data_in, ensemble_size = my_enseble_size, noise_strength = my_noise_strength)
+    emd_out <- my_emd[, ncol(my_emd)]
+    
+    if(length(emd_out) < 1){
+      emd_out <- rep(NA, length(data_in))
+    }
+    
+    return(emd_out)
+  }
+  
+  qannu_resid <- foreach::foreach(i = 1:ncol(qannu), .combine = 'cbind') %dopar% {
+    
+    f_emd_resid(qannu[, i])
+    
+  }
+  
+}
+if(do_loess){
+  
+  #function to smooth data with FFT
+  myLoess <- function(data_in){
+    
+    loess_NA_restore(data_in, smoo_val = loess_par)
+    
+  }
+  
+  qannu_resid <- foreach::foreach(i = 1:ncol(qannu), .combine = 'cbind') %dopar% {
+    
+    myLoess(qannu[, i])
+    
+  }
+  
 }
 
-qannu_resid <- foreach::foreach(i = 1:ncol(qannu), .combine = 'cbind') %dopar% {
-  
-  f_emd_resid(qannu[, i])
-  
-}
-
+#Scale data
 qannu_resid <- scale(qannu_resid, center = T, scale = F)
 
 

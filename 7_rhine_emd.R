@@ -6,16 +6,21 @@
 ###
 
 #parameter----
-vari_sel <- "disc" # disc, tem0, snow, rain, pres, wpre, rhum, clou
-stat_sel <- "Basel_Rheinhalle_2" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901), BER (1864), BAS (1864), DZUG (1901)
+vari_sel <- "tem0" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
+stat_sel <- "Hohenpeissenberg" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901), BER (1864), BAS (1864), DZUG (1901), SMA, Hohenpeissenberg
 sta_yea_emd <- 1869
 end_yea_emd <- 2017
 window_width <- 30 
 do_ma_emd <- T # do moving average
 do_na_fil_emd <- T
-do_center_emd <- T
+do_scale_emd <- T
+do_emd <- T
 my_enseble_size <- 2000
 my_noise_strength <- 0.5
+do_fft <- F
+smooth_par <- 10
+do_loess <- F
+loess_par <- 1
 
 #CEEMDAN_calc----
 
@@ -23,19 +28,37 @@ if(vari_sel == "tem0"){
   
   if(stat_sel == "BER"){# Bern / Zollikofen
     
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order62409/order_62409_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64387/order_64387_data.txt"), sep = ";", skip = 2, header = T)
     temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
     data_emd <- data.frame(date = temp_emd$date,
-                           BER  = temp_emd$tre200d0)
+                           BER  = temp_emd$ths200d0)
     
   }
   
   if(stat_sel == "BAS"){# Basel / Binningen
     
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order63459/order_63459_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), sep = ";", skip = 2, header = T)
     temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
     data_emd <- data.frame(date = temp_emd$date,
-                           BAS  = temp_emd$tre200d0)
+                           BAS  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "SMA"){# Zuerich / Fluntern
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64389/order_64389_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           SMA  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "Hohenpeissenberg"){
+    
+    temp_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-06_11_13/TMK_MN004.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    temp_emd$date <- as.Date(strptime(temp_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = temp_emd$date,
+                           Hohenpeissenberg = temp_emd$WERT)
     
   }
   
@@ -56,19 +79,6 @@ if(vari_sel == "snow"){
     snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
     data_emd <- data.frame(date = snow_emd$date,
                            DZUG = snow_emd$hto000d0)
-    
-  }
-  
-}
-
-if(vari_sel == "rain"){
-  
-  if(stat_sel == "BAS"){# Basel / Binningen
-    
-    snow_emd <- read.table(paste0(base_dir, "data/idaweb/order62545/order_62545_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
-    snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = snow_emd$date,
-                           BAS = snow_emd$rhs150d0)
     
   }
   
@@ -131,13 +141,24 @@ if(vari_sel == "clou"){
   }
 }
 
-sta_day_emd <- paste0(sta_yea_emd, "-01-01")
-end_day_emd <- paste0(end_yea_emd, "-12-31")
-start_row <- which(data_emd$date == sta_day_emd)
-emd_val <- data_emd[which(data_emd$date == sta_day_emd):which(data_emd$date == end_day_emd), which(colnames(data_emd) == stat_sel)]
-emd_dat <- data_emd$date[which(data_emd$date == sta_day_emd):which(data_emd$date == end_day_emd)]
-emd_sel <- data.frame(dates  = emd_dat,
-                      values = emd_val)
+if(vari_sel == "grdc"){
+  
+  data_emd <- grdc_data
+  emd_sel <- data.frame(dates = grdc_data$date,
+                        values= grdc_data$value)
+}else{
+  
+  sta_day_emd <- paste0(sta_yea_emd, "-01-01")
+  end_day_emd <- paste0(end_yea_emd, "-12-31")
+  start_row <- which(data_emd$date == sta_day_emd)
+  emd_val <- data_emd[which(data_emd$date == sta_day_emd):which(data_emd$date == end_day_emd), which(colnames(data_emd) == stat_sel)]
+  emd_dat <- data_emd$date[which(data_emd$date == sta_day_emd):which(data_emd$date == end_day_emd)]
+  emd_sel <- data.frame(dates  = emd_dat,
+                        values = emd_val)
+  
+}
+
+
 
 #Fill possible gaps
 start_date <- as.POSIXct(strptime(sta_day_emd, "%Y-%m-%d", tz="UTC"))
@@ -187,28 +208,93 @@ if(do_na_fil_emd){
   
 }
 
-#Function to do CEEMDAN and return residual
-f_emd_resid <- function(data_in){
+if(do_emd){
   
-  my_emd <- Rlibeemd::ceemdan(input = data_in, ensemble_size = my_enseble_size, noise_strength = my_noise_strength)
-  emd_out <- my_emd[, ncol(my_emd)]
-  
-  if(length(emd_out) < 1){
-    emd_out <- rep(NA, length(data_in))
+  #Function to do CEEMDAN and return residual
+  f_emd_resid <- function(data_in){
+    
+    my_emd <- Rlibeemd::ceemdan(input = data_in, ensemble_size = my_enseble_size, noise_strength = my_noise_strength)
+    emd_out <- my_emd[, ncol(my_emd)]
+    
+    if(length(emd_out) < 1){
+      emd_out <- rep(NA, length(data_in))
+    }
+    
+    return(emd_out)
   }
   
-  return(emd_out)
+  emd_resid <- foreach::foreach(i = 1:ncol(emd_day), .combine = 'cbind') %dopar% {
+    
+    f_emd_resid(emd_day[, i])
+    
+  }  
+  
 }
 
-emd_resid <- foreach::foreach(i = 1:ncol(emd_day), .combine = 'cbind') %dopar% {
+if(do_fft){
   
-  f_emd_resid(emd_day[, i])
+  #function to smooth data with FFT
+  myFFTsmooth <- function(data_in){
+    
+    smoothFFT(data_in, sd = smooth_par)
+    
+  }
+  
+  emd_resid <- foreach::foreach(i = 1:ncol(emd_day), .combine = 'cbind') %dopar% {
+    
+    myFFTsmooth(emd_day[, i])
+    
+  }  
   
 }
 
-if(do_center_emd){
+if(do_loess){
   
-  emd_resid <- scale(emd_resid, center = T, scale = F)
+  #function to smooth data with FFT
+  myLoess <- function(data_in){
+    
+    loess_NA_restore(data_in, smoo_val = loess_par)
+    
+  }
+  
+  emd_resid <- foreach::foreach(i = 1:ncol(emd_day), .combine = 'cbind') %dopar% {
+    
+    myLoess(emd_day[, i])
+    
+  }  
+  
+}
+#Scale results
+if(do_scale_emd){
+  
+  # emd_resid <- scale(emd_resid, center = TRUE, scale = FALSE)
+  
+  # #substract the minimum of each day
+  # emd_resid_mins <- apply(emd_resid, 2, min_na)
+  # 
+  # for (i in 1:ncol(emd_resid)) {
+  #   
+  #   emd_resid[, i] <- emd_resid[, i] - emd_resid_mins[i]
+  #   
+  # }
+  
+  # #divide by column mean
+  # emd_resid_meas <- apply(emd_resid, 2, mea_na)
+  # 
+  # for (i in 1:ncol(emd_resid)) {
+  #   
+  #   emd_resid[, i] <- emd_resid[, i] / emd_resid_meas[i]
+  #   
+  # }
+  
+  #substract median
+  emd_resid_meas <- apply(emd_resid, 2, mea_na)
+
+  for (i in 1:ncol(emd_resid)) {
+
+    emd_resid[, i] <- emd_resid[, i] - emd_resid_meas[i]
+
+  }
   
 }
 
@@ -228,14 +314,28 @@ n_min <- 200 - n_max
 cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
 cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
 
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(min_na(emd_resid), max_na(emd_resid),length.out = length(cols_scale)+1))
+cols_emd <- c(cols_min, cols_max)
+
+brea_emd <- c(seq(min_na(emd_resid), max_na(emd_resid),length.out = length(cols_emd)+1))
+
+# cols_emd <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white",
+#                                           "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
+# max_break <- max_na(emd_resid)
+# min_break <- min_na(emd_resid)
+# qua_break <- quantile(emd_resid, probs = 0.5, type = 8, na.rm = T)
+# 
+# breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
+# breaks_2 <- seq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
+# breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + min_na(breaks_1)/100
+# 
+# brea_emd <- c(breaks_1, breaks_2)
+
 
 image(x = 1:365,
       y = sta_yea_emd:end_yea_emd,
       z = t(emd_resid), 
-      col    = cols_scale, 
-      breaks = brea_scale,
+      col    = cols_emd, 
+      breaks = brea_emd,
       ylab = "", xlab = "", axes = F)
 axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.06)#plot ticks
@@ -247,9 +347,9 @@ box()
 
 par(mar = c(1.6, 0.5, 0.6, 2.7))
 
-image_scale(as.matrix(emd_resid), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+image_scale(as.matrix(emd_resid), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
 axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
-mtext("CEEMDAN residual (centered) [°C]", side = 4, line = 1.5, cex = 0.8)
+mtext("CEEMDAN residual (scaled)", side = 4, line = 1.5, cex = 0.8)
 
 box()
 

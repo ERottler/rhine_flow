@@ -12,6 +12,6 @@ stopCluster(my_clust)
 
 #Make cluster for parallel computing
 my_clust <- makeCluster(n_cores)
-clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow, sp, raster))
+clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow, sp, raster, betareg, rfs))
 registerDoParallel(my_clust)
 

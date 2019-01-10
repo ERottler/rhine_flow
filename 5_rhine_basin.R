@@ -999,18 +999,18 @@ box(lwd = 0.7)
 
 range(elevs_d)
 
-my_elev_bands <- c(seq(250, 3000, 50), 4000)
+my_elev_bands <- c(seq(400, 3000, 50), 4000)
 
 #Syntetic meta data info for grid points to use alptempr functions
 HS_amount <- length(which(my_elev_bands[-length(my_elev_bands)] > high_stat_thresh))
 MS_amount <- length(which(my_elev_bands[-length(my_elev_bands)] > middle_stat_thresh)) - HS_amount
 LS_amount <- length(my_elev_bands[-length(my_elev_bands)]) - MS_amount - HS_amount
 
-meta_grid_bands <- data.frame(stn = paste0("band", 1:ncol(tmed_band)),
+meta_grid_bands <- data.frame(stn = paste0("band", 1:(length(my_elev_bands)-1)),
                               alt = my_elev_bands[-length(my_elev_bands)],
                               category = c(rep("low", LS_amount), rep("middle", MS_amount), rep("high", HS_amount)),
-                              data_qual = rep("quality-checked", ncol(tmed_band)),
-                              clim_reg = rep("Jura", ncol(tmed_band)))
+                              data_qual = rep("quality-checked", (length(my_elev_bands)-1)),
+                              clim_reg = rep("Jura", (length(my_elev_bands)-1)))
 
 tmed_band <- f_elev_bands(data_in = tmed, func_aggr = "mean")
 colnames(tmed_band) <- paste0("band", 1:ncol(tmed_band))

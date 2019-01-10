@@ -48,7 +48,7 @@ get_cube_index_row <- function(val_in, lons_in = lon2D, col_or_row = "row"){
 dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analys, quant_in = .95,
                     method_quant = "gev", do_moving_average = T, window_width = 30, 
                     cover_thresh = 0.2, above_below_quant = "above", w_allign = "center", quant_annual = F,
-                    break_day = 0){
+                    break_day = 0, do_prob_beta_reg = F, beta_zero_one_thres = 0.2, rank_sel = 30){
   
   input_data_full <- data.frame(date = date, value = disc)
   
@@ -143,6 +143,168 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     
   }
   
+  if(method_analys == "window_rank_sens_slope"){
+    
+    f_rank_extr <- function(data_in){
+      
+      sort(data_in, na.last = F)[rank_sel]
+  
+    }
+    
+    #Window maximum
+    input_data$ma <- rollapply(data = input_data$values, width = window_width,
+                               FUN = f_rank_extr, align = "center", fill = NA)
+    
+    #Vector with the 365 days of the year
+    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
+    days <- format(days,"%m-%d")
+    
+    #Order data by day
+    data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    colnames(data_day) <- c("year", days)
+    data_day[ ,1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day[i+1, 2:366] <- input_data$ma[(i*365+1):((i+1)*365)]
+      
+    }
+    
+    #Trends only calculated when at least 50 % of input not NA or 0
+    f_sens_slope <- function(data_in){sens_slope(data_in = data_in, cover_thresh = cover_thresh)}
+    res <- apply(data_day[,-1], 2, f_sens_slope)
+    
+  }
+  
+  if(method_analys == "window_rank_mean"){
+    
+    f_rank_extr <- function(data_in){
+      
+      sort(data_in, na.last = F)[rank_sel]
+      
+    }
+    
+    #Window maximum
+    input_data$ma <- rollapply(data = input_data$values, width = window_width,
+                               FUN = f_rank_extr, align = "center", fill = NA)
+    
+    #Vector with the 365 days of the year
+    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
+    days <- format(days,"%m-%d")
+    
+    #Order data by day
+    data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    colnames(data_day) <- c("year", days)
+    data_day[ ,1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day[i+1, 2:366] <- input_data$ma[(i*365+1):((i+1)*365)]
+      
+    }
+    
+    #Trends only calculated when at least 50 % of input not NA or 0
+    f_mea_na_thres <- function(data_in){mea_na_thres(x = data_in, na_thres = 1 - cover_thresh)}
+    res <- apply(data_day[,-1], 2, f_mea_na_thres)
+    
+  }
+  
+  if(method_analys == "window_rank_medi"){
+    
+    f_rank_extr <- function(data_in){
+      
+      sort(data_in, na.last = F)[rank_sel]
+      
+    }
+    
+    #Window maximum
+    input_data$ma <- rollapply(data = input_data$values, width = window_width,
+                               FUN = f_rank_extr, align = "center", fill = NA)
+    
+    #Vector with the 365 days of the year
+    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
+    days <- format(days,"%m-%d")
+    
+    #Order data by day
+    data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    colnames(data_day) <- c("year", days)
+    data_day[ ,1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day[i+1, 2:366] <- input_data$ma[(i*365+1):((i+1)*365)]
+      
+    }
+    
+    #Trends only calculated when at least 50 % of input not NA or 0
+    f_medi <- function(data_in){median(data_in, na.rm = T)}
+    res <- apply(data_day[,-1], 2, f_medi)
+    
+  }
+  
+  if(method_analys == "window_rank_max"){
+    
+    f_rank_extr <- function(data_in){
+      
+      sort(data_in, na.last = F)[rank_sel]
+      
+    }
+    
+    #Window maximum
+    input_data$ma <- rollapply(data = input_data$values, width = window_width,
+                               FUN = f_rank_extr, align = "center", fill = NA)
+    
+    #Vector with the 365 days of the year
+    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
+    days <- format(days,"%m-%d")
+    
+    #Order data by day
+    data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    colnames(data_day) <- c("year", days)
+    data_day[ ,1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day[i+1, 2:366] <- input_data$ma[(i*365+1):((i+1)*365)]
+      
+    }
+    
+    f_max <- function(data_in){max(data_in, na.rm = T)}
+    res <- apply(data_day[,-1], 2, f_max)
+    
+  }
+  
+  if(method_analys == "window_rank_min"){
+    
+    f_rank_extr <- function(data_in){
+      
+      sort(data_in, na.last = F)[rank_sel]
+      
+    }
+    
+    #Window maximum
+    input_data$ma <- rollapply(data = input_data$values, width = window_width,
+                               FUN = f_rank_extr, align = "center", fill = NA)
+    
+    #Vector with the 365 days of the year
+    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
+    days <- format(days,"%m-%d")
+    
+    #Order data by day
+    data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    colnames(data_day) <- c("year", days)
+    data_day[ ,1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day[i+1, 2:366] <- input_data$ma[(i*365+1):((i+1)*365)]
+      
+    }
+    
+    f_min <- function(data_in){min(data_in, na.rm = T)}
+    res <- apply(data_day[,-1], 2, f_min)
+    
+  }
   if(method_analys == "sens_slope_snow"){
     #Moving average filter
     input_data$ma <- rollapply(data = input_data$values, width = window_width,
@@ -191,7 +353,7 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
             if(length(unique(data_in)) <= 1){
               quant_out <- unique(data_in)
             }else{
-              quant_out <- quantile(data_in, probs = quant_in, type = 8,na.rm = T)}}
+              quant_out <- quantile(data_in, probs = quant_in, type = 8, na.rm = T)}}
         
         return(quant_out)
       }
@@ -414,7 +576,7 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     
     input_data$values <- sapply(input_data$values, f_floodYN)
     
-    #Apply moving average
+    #Calculate moving window probability
     # f_mean <- function(data_in){mean(data_in, na.rm = T)}
     f_prop <- function(data_in){
       sum_in <- sum(data_in, na.rm = T)
@@ -434,7 +596,7 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
       data_day[i + 1, 2:366] <- input_data$ma[(i * 365 + 1):((i + 1 )* 365)]
     }
     
-    #Calculate trends of flood likelihood
+    #Calculate trends in window exceedance probabilites
     f_sens_slope <- function(data_in, cover_thresh = 0.2){
       if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
         sens_slo <-  NA
@@ -444,27 +606,89 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
       return(sens_slo)
     }
     
-    res <- apply(data_day[, -1], 2, f_sens_slope) *10 #[%/dec]
-    
-    #When likelihood always (or only one value different from) 0 / 100 no trend
-    #calculated (NA), but trend is 0
-    
-    for(i in 1:365){
-      
-      #if trend magnitude calculated
-      if((length(which(is.na(data_day[, i+1]))) / nrow(data_day)) < (1 - cover_thresh)){
+    f_beta_reg <- function(data_in, cover_thres = 0.2, zero_one_thres = beta_zero_one_thres){
+      if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
+        beta_coef <-  NA
+      }else{
         
-        if(length(which(data_day[, i+1] == 100)) >=
-           ((nrow(data_day) - 2) - length(which(is.na(data_day[, i+1]))))){
-          res[i] <- 0
+        #Only do regression when enough values different to 0 / 1
+        
+        not_zero_one <- 1 - (length(which(data_in == 0)) + length(which(data_in == 1))) / length(data_in)
+        
+        if(not_zero_one > zero_one_thres){
+          
+          #transforme extremes 0 and 1 
+          # Smithson, M., & Verkuilen, J. (2006). A better lemon squeezer? Maximum-likelihood 
+          # regression with beta-distributed dependent variables. Psychological Methods, 11(1), 54-71.
+          # http://dx.doi.org/10.1037/1082-989X.11.1.54
+          
+          f_betaXtrans <- function(data_in){
+            
+            ndata <- length(data_in)
+            
+            f_trans <- function(value_in){
+              
+              value_out <- (value_in * (ndata -1) +0.5)/ndata
+              
+            }
+            
+            data_out <- sapply(data_in, f_trans)
+            
+            return(data_out)
+            
+          }
+          
+          data_trans <- f_betaXtrans(data_in) / 100 # divide by 100 for data 0 to 1; before data in [%]
+          time_steps <- 1:length(data_in)
+          
+          beta_dat <- data.frame(time_steps = time_steps,
+                                 data_trans = data_trans)
+          
+          beta_mod <- betareg(data_trans ~ time_steps, data = beta_dat)
+          
+          beta_coef <- as.numeric(beta_mod$coefficients$mean[2])
+          
+        }else{
+          
+          beta_coef <- NA
+          
         }
         
-        if(length(which(data_day[, i+1] == 0)) >=
-           ((nrow(data_day) - 2) - length(which(is.na(data_day[, i+1]))))){
-          res[i] <- 0
+      }
+      
+      return(beta_coef)
+      
+    }
+    
+    if(do_prob_beta_reg){
+      
+      res <- apply(data_day[, -1], 2, f_beta_reg)
+      
+    }else{
+      res <- apply(data_day[, -1], 2, f_sens_slope) *10 #[%/dec]
+      
+      #When likelihood always (or only one value different from) 0 / 100 no trend
+      #calculated (NA), but trend is 0
+      
+      for(i in 1:365){
+        
+        #if trend magnitude calculated
+        if((length(which(is.na(data_day[, i+1]))) / nrow(data_day)) < (1 - cover_thresh)){
+          
+          if(length(which(data_day[, i+1] == 100)) >=
+             ((nrow(data_day) - 2) - length(which(is.na(data_day[, i+1]))))){
+            res[i] <- 0
+          }
+          
+          if(length(which(data_day[, i+1] == 0)) >=
+             ((nrow(data_day) - 2) - length(which(is.na(data_day[, i+1]))))){
+            res[i] <- 0
+          }
         }
       }
+      
     }
+    
   }
   
   if(method_analys == "mov_quant_prob_trend_above_thres"){
@@ -2293,3 +2517,14 @@ f_elev_bands <- function(data_in, elev_bands = my_elev_bands,
   return(data_range)
   
 }
+
+
+#Logarithmic sequence
+
+logseq <- function(from=1, to=100000, length.out=6, base_sel = 10) {
+  # logarithmic spaced sequence
+  # blatantly stolen from library("emdbook"), because need only this
+  base_sel**seq(log(from, base = base_sel), log(to, base = base_sel), length.out = length.out)
+}
+
+logseq()
