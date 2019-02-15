@@ -83,6 +83,42 @@ wt_slo <-  "fixed" #fixed, flexi
 #load functions
 source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+load("u:/RhineFlow/rhine_obs/manus/figures/riv_flow.Rdata")
+
+save(qvalu_wass, qvslo_wass, qvalu_burg, qvslo_burg, qvalu_base, qvslo_base,
+     qvalu_koel, qvslo_koel, qvalu_rees, qvslo_rees, qvalu_wuer, qvslo_wuer,
+     qvalu_dres, qvslo_dres,
+     emd_disc_wass, emd_disc_burg, emd_disc_base, emd_disc_koel,
+     emd_disc_rees, emd_disc_wuer, emd_disc_dres,
+     emd_temp_bern, emd_temp_base, emd_temp_zuer, emd_temp_hohe,
+     sta_yea_emd, end_yea_emd,
+     qannu_wass, qannu_burg, qannu_base, qannu_koel, 
+     qannu_rees, qannu_wuer, qannu_dres,
+     qannu_rain_bern, qannu_rain_base, qannu_rain_zuer, qannu_rain_hohe,
+     sta_yea_ann, end_yea_ann, 
+     file = "u:/RhineFlow/rhine_obs/manus/figures/riv_flow.Rdata") 
+
+
+
+
+
+
+
+
 # #Make cluster for parallel computing
 # my_clust <- makeCluster(n_cores)
 # clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow, sp, raster))

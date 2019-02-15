@@ -5,7 +5,7 @@
 
 ###
 
-n_cores <- 45 #number of cores used for parallel computing
+n_cores <- 50 #number of cores used for parallel computing
 
 #stop cluster
 stopCluster(my_clust)
@@ -14,4 +14,16 @@ stopCluster(my_clust)
 my_clust <- makeCluster(n_cores)
 clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, rEchseSnow, sp, raster, betareg, rfs))
 registerDoParallel(my_clust)
+
+
+
+
+
+
+
+
+
+
+
+
 

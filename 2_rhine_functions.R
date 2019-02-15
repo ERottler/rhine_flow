@@ -43,12 +43,24 @@ get_cube_index_row <- function(val_in, lons_in = lon2D, col_or_row = "row"){
 }
 
 
+#Berry gdp function for parametric quantiles
+GPDquantile <- function(x, probs)
+{
+  NA_output <- rep(NA, length(probs))
+  mom <- lmomco::lmoms(x, nmom=5)
+  if(!lmomco::are.lmom.valid(mom)) return(NA_output)
+  param <- lmomco::lmom2par(mom, type="gpa")
+  if(is.null(param)) return(NA_output)
+  if(all(is.na(x))) return(NA_output)
+  lmomco::qlmomco(f=probs, para=param)
+}
 
 #trend statistics: basic function
 dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analys, quant_in = .95,
                     method_quant = "gev", do_moving_average = T, window_width = 30, 
                     cover_thresh = 0.2, above_below_quant = "above", w_allign = "center", quant_annual = F,
-                    break_day = 0, do_prob_beta_reg = F, beta_zero_one_thres = 0.2, rank_sel = 30){
+                    break_day = 0, do_prob_beta_reg = F, beta_zero_one_thres = 0.2, rank_sel = 30,
+                    weather_type = c(1, 2, 3, 4)){
   
   input_data_full <- data.frame(date = date, value = disc)
   
@@ -95,11 +107,66 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     }
   }
 
+  #Function for trend calculations
   
-  # if(method_analys == "mean"){
-  #   f_mean <- function(data_in){mean(data_in, na.rm = T)}
-  #   res <- apply(data_day[,-1], 2, f_mean)
-  # }
+  f_sens_slope <- function(data_in, cover_thresh = 0.9){
+    
+    if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
+      sens_slo <-  NA
+    }else{
+      time_step <- 1:length(data_in)
+      sens_slo <- as.numeric(zyp.sen(data_in~time_step)$coefficients[2])
+      #sens_slo <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[2])
+    }
+    return(sens_slo)
+  }
+
+  #Select quantile method
+  
+  if(method_quant == "empirical"){
+    
+    f_quan <- function(data_in){
+      if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
+        quant_out <- NA}else{
+          if(length(unique(data_in)) <= 1){
+            quant_out <- unique(data_in)
+          }else{
+            quant_out <- quantile(data_in, probs = quant_in, type = 8, na.rm = T)}}
+      
+      return(quant_out)
+    }
+    
+  }
+  
+  if(method_quant == "gev"){
+    f_quan <- function(data_in){
+      if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
+        quant_out <- NA}else{
+          if(length(unique(data_in)) <= 1){
+            quant_out <- unique(data_in)
+          }else{
+            params <- lmr2par(data_in, type = "gev")
+            if(is.null(params)){#check if parameters were calculated
+              quant_out <- median(data_in)}else{
+                quant_out <- par2qua(para = params, f = quant_in)}}}
+      return(quant_out)
+    }
+  }
+  
+  if(method_quant == "gpd"){
+    
+    f_quan <- function(data_in){
+      
+      quant_out <- GPDquantile(data_in, probs = quant_in)
+      
+      return(quant_out)
+      
+    }
+    
+  }
+  
+
+  #Selecte analytical method
   
   if(method_analys == "mean"){
     f_mea_na_thres <- function(data_in){mea_na_thres(x = data_in, na_thres = 1 - cover_thresh)}
@@ -137,7 +204,6 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     }
     
     #Trends only calculated when at least 50 % of input not NA or 0
-    f_sens_slope <- function(data_in){sens_slope(data_in = data_in, cover_thresh = cover_thresh)}
     res <- apply(data_day[,-1], 2, f_sens_slope)
     
     
@@ -345,36 +411,6 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   
   if(method_analys == "quantile"){
     
-    if(method_quant == "empirical"){
-      
-      f_quan <- function(data_in){
-        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
-          quant_out <- NA}else{
-            if(length(unique(data_in)) <= 1){
-              quant_out <- unique(data_in)
-            }else{
-              quant_out <- quantile(data_in, probs = quant_in, type = 8, na.rm = T)}}
-        
-        return(quant_out)
-      }
-      
-    }
-    
-    if(method_quant == "gev"){
-      f_quan <- function(data_in){
-        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
-          quant_out <- NA}else{
-            if(length(unique(data_in)) <= 1){
-              quant_out <- unique(data_in)
-            }else{
-              params <- lmr2par(data_in, type = "gev")
-              if(is.null(params)){#check if parameters were calculated
-                quant_out <- median(data_in)}else{
-                  quant_out <- par2qua(para = params, f = quant_in)}}}
-        return(quant_out)
-      }
-    }
-    
     if(quant_annual){
       res <- apply(data_day[,-1], 1, f_quan)
     }else{
@@ -383,55 +419,6 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   }
   
   if(method_analys == "quantile_prob"){
-    
-    if(method_quant == "empirical"){
-      
-      f_quan <- function(data_in){
-        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
-          quant_out <- NA}else{
-            if(length(unique(data_in)) <= 1){
-              quant_out <- unique(data_in)
-            }else{
-              quant_out <- quantile(data_in, probs = quant_in, type = 8, na.rm = T)}}
-        
-        return(quant_out)
-      }
-      
-      quant_thres <- f_quan(input_data$values)
-    }
-    
-    if(method_quant == "gev"){
-      
-      f_quan <- function(data_in){
-        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
-          quant_out <- NA}else{
-            if(length(unique(data_in)) <= 1){
-              quant_out <- unique(data_in)
-            }else{
-              params <- lmr2par(data_in, type = "gev")
-              if(is.null(params)){#check if parameters were calculated
-                quant_out <- median(data_in)}else{
-                  quant_out <- par2qua(para = params, f = quant_in)}}}
-        return(quant_out)
-      }
-      
-      quant_thres <- f_quan(input_data$values)
-      
-      # #Clip selected time period
-      # input_data_qua <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= 1950, ]
-      # input_data_qua <- input_data_qua[as.numeric(format(input_data$date,'%Y')) <= 2014, ]
-      # 
-      # #Fill possible gaps
-      # start_date_qua <- as.POSIXct(strptime(paste0("1869","-01-01"), "%Y-%m-%d", tz="UTC"))
-      # end_date_qua   <- as.POSIXct(strptime(paste0("2017","-12-31"),   "%Y-%m-%d", tz="UTC"))
-      # full_date_qua  <- seq(start_date, end_date, by="day")
-      # 
-      # input_data_qua <- data.frame(dates  = full_date,
-      #                              values = with(input_data_qua, value[match(as.Date(full_date), as.Date(date))])
-      # )
-      # 
-      # quant_thres <- f_quan(input_data$values)
-    }
     
     f_quant_likelihood <- function(data_in){
       if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
@@ -449,61 +436,148 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     }
     
     res <- apply(data_day[,-1], 2, f_quant_likelihood)
+    
+  }
+  
+  if(method_analys == "weather_type_window_sens_slope"){
+    #Selected weather type: Yes (1) or No (0)
+    
+    f_weatherYN <- function(data_in, gwts = weather_type){
+      
+      if(data_in %in% gwts){
+        data_in <- 1
+      }else{
+        data_in <- 0
+      }
+      return(data_in)
+    }
+    
+    input_data$values <- sapply(input_data$values, f_weatherYN)
+    
+    
+    #Apply moving average
+    input_data$ma <- rollapply(data = input_data$values, width = window_width,
+                               FUN = sum_na, align = "center", fill = NA)
+    
+    #Order data by day
+    data_day = matrix(NA, nrow=length(start_year:end_year), ncol = 366)
+    colnames(data_day)=c("year", days)
+    data_day[, 1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year) - 1)) {
+      data_day[i + 1, 2:366] <- input_data$ma[(i * 365 + 1):((i + 1 )* 365)]
+    }
+    
+    #Calculate trends of window likelihood
+    mov_res <- apply(data_day[, -1], 2, f_sens_slope)
+    
+    #When likelihood always (or only one value different from) 0 / 1 no trend
+    #calculated (NA), but trend is 0
+    
+    for(i in 1:365){
+      
+      #if trend magnitude calculated
+      if((length(which(is.na(data_day[, i+1]))) / nrow(data_day)) < (1 - cover_thresh)){
+        
+        if(length(which(data_day[, i+1] == 1)) >=
+           ((nrow(data_day) - 2) - length(which(is.na(data_day[, i+1]))))){
+          mov_res[i] <- 0
+        }
+        
+        if(length(which(data_day[, i+1] == 0)) >=
+           ((nrow(data_day) - 2) - length(which(is.na(data_day[, i+1]))))){
+          mov_res[i] <- 0
+        }
+      }
+    }
+    
+    res <- mov_res
+    
   }
   
   if(method_analys == "mov_quant_trend"){
     
-    if(method_quant == "empirical"){
-      f_quan <- function(data_in){
-        quantile(data_in, probs = quant_in, na.rm = T)}
-    }
     
-    if(method_quant == "gev"){
-      f_quan <- function(data_in){
-        if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
-          quant_out <- NA}else{
-            if(length(unique(data_in)) <= 1){
-              quant_out <- unique(data_in)
-            }else{
-              params <- lmr2par(data_in, type = "gev")
-              if(is.null(params)){#check if parameters were calculated
-                quant_out <- median(data_in)}else{
-                  quant_out <- par2qua(para = params, f = quant_in)}}}
-        return(quant_out)
-      }
-    }
+    ns <- 1:(length(input_data$values) - 29) #interger to moving window over time series
     
-    f_sens_slope <- function(data_in, cover_thresh = 0.2){
-      if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
-        sens_slo <-  NA
+    mov_quants <- function(int){
+      
+      if(length(which(is.na(input_data$values[int:(int+window_width-1)]))) > (window_width/2)){
+        
+        mov_quant_out <- rep(NA, length(quant_in))
+        
       }else{
-        sens_slo <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[2])
+        mov_quant_out <- f_quan(input_data$values[int:(int+window_width-1)])
+        
       }
-      return(sens_slo)
-    }
-    
-    #Moving quantiles
-    input_data$mq <- rollapply(data = input_data$values, width = window_width,
-                               FUN = f_quan, align = "center", fill = NA)
-    
-    
-    data_in <- c(rep(1,30),3)
-    data_in <- 1:50
-    
-    
-    #Order data by day
-    data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
-    colnames(data_day) <- c("year", days)
-    data_day[ ,1] <- start_year:end_year
-    
-    for(i in 0:(length(start_year:end_year)-1)) {
       
-      data_day[i+1, 2:366] <- input_data$mq[(i*365+1):((i+1)*365)]
+      return(mov_quant_out)
       
     }
+    
+    mov_quants_vals <- pbsapply(ns, mov_quants, simplify = T)
+    
+    #add NA columns beginning and end to 'center' moving window
+    
+    na_cols_sta <- matrix(NA, nrow = nrow(mov_quants_vals), ncol = 14)
+    na_cols_end <- matrix(NA, nrow = nrow(mov_quants_vals), ncol = 15)
+    mov_quants_vals <- cbind(na_cols_sta, mov_quants_vals, na_cols_end)
     
     #Calculate trends of quantiles
-    res <- apply(data_day[, -1], 2, f_sens_slope)
+
+    f_quant_wind_slo <- function(row_sel){
+      
+      data_quant_sel <- mov_quants_vals[row_sel, ]
+      
+      #Order data by day
+      data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+      colnames(data_day) <- c("year", days)
+      data_day[ ,1] <- start_year:end_year
+      
+      for(i in 0:(length(start_year:end_year)-1)) {
+        
+        data_day[i+1, 2:366] <- data_quant_sel[(i*365+1):((i+1)*365)]
+        
+      }
+      
+      res_quant <- apply(data_day[, -1], 2, f_sens_slope)
+      
+      return(res_quant)
+      
+    }
+    
+    quants_int <- 1:nrow(mov_quants_vals)
+    
+    res <- pbsapply(quants_int, f_quant_wind_slo, simplify = T)
+    
+    
+    
+    # #Moving quantiles
+    # input_data$mq <- rollapply(data = input_data$values, width = window_width,
+    #                            FUN = f_quan, align = "center", fill = NA)
+    # 
+    # #Order data by day
+    # data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    # colnames(data_day) <- c("year", days)
+    # data_day[ ,1] <- start_year:end_year
+    # 
+    # for(i in 0:(length(start_year:end_year)-1)) {
+    #   
+    #   data_day[i+1, 2:366] <- input_data$mq[(i*365+1):((i+1)*365)]
+    #   
+    # }
+    # 
+    # #Calculate trends of quantiles
+    # f_sens_slope <- function(data_in, cover_thresh = 0.2){
+    #   if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
+    #     sens_slo <-  NA
+    #   }else{
+    #     sens_slo <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[2])
+    #   }
+    #   return(sens_slo)
+    # }
+    # res <- apply(data_day[, -1], 2, f_sens_slope)
+    
   }
   
   if(method_analys == "mov_quant_trend_above_thres"){

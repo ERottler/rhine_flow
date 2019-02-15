@@ -58,7 +58,7 @@ sh_mose <- sp::spTransform(sh_mose, CRS = crswgs84)
 sh_neck <- sp::spTransform(sh_neck, CRS = crswgs84)
 sh_griv <- sp::spTransform(sh_griv, CRS = crswgs84)
 
-load(paste0(base_dir, "data/rhine_flow_app.RData"))
+load(paste0(base_dir, "data/rhine_flow_app_old.RData"))
 
 #user_interface####
 ui <- fluidPage(theme = shinytheme("superhero"),
@@ -66,20 +66,21 @@ ui <- fluidPage(theme = shinytheme("superhero"),
   fluidPage(
     width = 12,
     hr(),
-    tags$h3("Changes in Rhine flood seasonality due to climate change"),
-    tags$h5("Erwin Rottler, Berry Boessenkool, Till Francke, Gerd Bürger and Axel Bronstert"),
+    tags$h3("Hydro-meteorologische Datenanalyse der Veränderungen im Abfluss des Rheins und seiner Nebenflüsse"),
+    tags$h5("Erwin Rottler, Till Francke, Gerd Bürger and Axel Bronstert"),
+    tags$h6("Institut für Umweltwissenschaften und Geographie, Universität Potsdam"),
     hr(),
     column(
       width = 6,
       wellPanel(
-        checkboxInput(inputId = "condi_map", label = strong("Select sub-basin / gauging station on map"), value = T),
+        checkboxInput(inputId = "condi_map", label = strong("Interaktive Karte: Auswahl Pegelstation/Teileinzugsgebiet"), value = T),
         conditionalPanel(
           condition = "input.condi_map == true",
           leaflet::leafletOutput(outputId = "map", height = 350)
         )
       ),
       wellPanel(
-      checkboxInput(inputId = "condi_clim", label = strong("Climate")),
+      checkboxInput(inputId = "condi_clim", label = strong("Klima")),
       conditionalPanel(
           condition = "input.condi_clim == true",
           textOutput(outputId = "basin_select_clim"),
@@ -91,14 +92,14 @@ ui <- fluidPage(theme = shinytheme("superhero"),
     column(
       width = 6,
       wellPanel(
-        checkboxInput(inputId = "condi_disc", label = strong("Discharge"), value = T),
+        checkboxInput(inputId = "condi_disc", label = strong("Abfluss"), value = T),
         conditionalPanel(
           condition = "input.condi_disc == true",
           plotOutput(outputId = "plot_disc", height = 350)
         )#conditional Panel
       ),
       wellPanel(
-        checkboxInput(inputId = "condi_clic", label = strong("Climatic changes")),
+        checkboxInput(inputId = "condi_clic", label = strong("Klimaänderung")),
         conditionalPanel(
           condition = "input.condi_clic == true",
           textOutput(outputId = "basin_select_clic"),
@@ -109,11 +110,8 @@ ui <- fluidPage(theme = shinytheme("superhero"),
     column(
       width = 12,
     wellPanel(
-      tags$p("If you have questions, suggestions or ideas you want to share,
-                   please do not hesitate to contact us: rottler(at)uni-potsdam.de"),
-      tags$p("This research was funded by Deutsche Forschungsgemeinschaft (DFG) within the
-           graduate research training group NatRiskChange (GRK 2043/1) at 
-           the University of Potsdam.")
+      tags$p("Sollten Sie Fragen oder Anregungen haben, bitte zögern Sie nicht uns zu kontaktieren: rottler(at)uni-potsdam.de"),
+      tags$p("Diese Analysen werden durch die Deutsche Forschungsgemeinschaft (DFG) im Rahmen des Graduiertenkollegs 'NatRiskChange' gefördert (www.natriskchange.de).")
       )
     )
   ) # end of the box
@@ -263,6 +261,99 @@ f_plot_disc <- function(){
              margins_1 = c(1.6,2.5,1.6,0),
              margins_2 = c(1.6,0.5,1.6,1.7)
   )
+  
+}
+f_plot_disc <- function(){
+  
+  layout(matrix(c(1,1,1,1,1,1,1,2),
+                1, 8), widths=c(), heights=c())
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(90, 10, by = -10) 
+  
+  cols_qvalu <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white", 
+                                              "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
+  
+  max_break <- max_na(qvalu_long)
+  min_break <- min_na(qvalu_long)
+  qua_break <- quantile(qvalu_long, probs = 0.7, type = 8, na.rm = T)
+  
+  breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
+  breaks_2 <- lseq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
+  breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + 0.1
+  
+  breaks_qvalu <- c(breaks_1, breaks_2)
+  
+  y <- 1:ncol(qvalu_long)
+  x <- 1:365
+  
+  par(mar = c(1.6, 3, 0.6, 0))
+  
+  image(x, y, as.matrix(qvalu_long), col = cols_qvalu, breaks = breaks_qvalu, ylab = "",
+        xlab = "", axes = F)
+  
+  axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
+  mtext("Quantile", 2, 1.5, cex = 0.8)
+  
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.03)#plot ticks
+  axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+       col="black", col.axis="black", mgp=c(3, 0.3, 0))#plot labels
+  box()
+  
+  par(mar = c(1.6, 0.5, 0.6, 2.7))
+  
+  alptempr::image_scale(as.matrix(qvalu_long), col = cols_qvalu, breaks = breaks_qvalu, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+  mtext("Discharge [m³/sec]", side = 4, line = 1.5, cex = 0.8)
+  
+  box()
+  
+  
+  #Plot: Trend moving quantile
+  
+  layout(matrix(c(1,1,1,1,1,1,1,2),
+                1, 8), widths=c(), heights=c())
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(90, 10, by = -10) 
+  
+  n_max <- round(abs(alptempr::max_na(qvslo_long)) / (alptempr::max_na(qvslo_long) + abs(alptempr::min_na(qvslo_long))), digits = 2) * 200
+  n_min <- 200 - n_max
+  cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
+  cols_max <- grDevices::colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+  cols_qvslo <- c(cols_min, cols_max)
+  
+  breaks_qvslo <-  seq(alptempr::min_na(qvslo_long), alptempr::max_na(qvslo_long), length.out = length(cols_qvslo) +1)
+  
+  y <- 1:ncol(qvslo_long)
+  x <- 1:365
+  
+  par(mar = c(1.6, 3, 0.6, 0))
+  
+  image(x, y, as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, ylab = "",
+        xlab = "", axes = F)
+  
+  axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
+  mtext("Quantile", 2, 1.5, cex = 0.8)
+  
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.03)#plot ticks
+  axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+       col="black", col.axis="black", mgp=c(3, 0.3, 0))#plot labels
+  box()
+  
+  par(mar = c(1.6, 0.5, 0.6, 2.7))
+  
+  alptempr::image_scale(as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+  mtext("Trend window quantiles [m³/sec/dec]", side = 4, line = 1.5, cex = 0.8)
+  
+  box()
   
 }
 f_plot_clim <- function(){

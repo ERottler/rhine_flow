@@ -1,28 +1,28 @@
 ###
 
-#Rhine flow observations - EMD meets GEV
+#Rhine flow observations - EMD meets GPD
 #Erwin Rottler, University of Potsdam
 
 ###
 
 #parameter----
 
-vari_annu <- "rain" # disc, rain, tem0, grdc
-stat_annu <- "BAS" # Basel_Rheinhalle_2 (1869), BAS (1864), BER (1864), Cochem (1901), Koeln (1824), Diepoldsau_2,
+vari_annu <- "grdc" # disc, rain, tem0, grdc
+stat_annu <- "Basel_Rheinhalle_2" # Basel_Rheinhalle_2 (1869), BAS (1864), BER (1864), Cochem (1901), Koeln (1824), Diepoldsau_2,
                          # Freudenstadt_Kniebis, Karlsruhe (1876), Hohenpeissenberg, Frankfurt_AM, SMA
-sta_yea_ann <- 1869
-end_yea_ann <- 2017
+sta_yea_ann <- 1932
+end_yea_ann <- 2014
 my_break_day <- 0  # 1-Oct: 274 (Switzerland), 1-Nov: 305 (Germany)
 quants <- seq(0.01, 0.99, by = 0.01)
-quant_method <- "empirical" #empirical, gev
+quant_method <- "gpd" #empirical, gev, gpd
 rain_thres <- 2 #threshold rainy day (below or equal set to NA)
 my_cover_threshold <- 0.999
-do_emd <- F
+do_emd <- T
 my_enseble_size <- 2000
 my_noise_strength <- 0.5
 do_fft <- F
 smooth_par <- 6
-do_loess <- T
+do_loess <- F
 loess_par <- 1
 do_na_fil_emd <-  F
 
@@ -65,7 +65,7 @@ if(vari_annu == "rain"){
     
   }
   
-  if(stat_annu == "SMA"){# Bern
+  if(stat_annu == "SMA"){# Zuerich
     
     data_emd <- read.table(paste0(base_dir, "data/idaweb/order64389/order_64389_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
     data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
@@ -296,3 +296,61 @@ mtext("CEEMDAN residual (centered) [°C]", side = 4, line = 1.5, cex = 0.8)
 
 box()
 
+
+
+#Berry quantiles----
+
+# Usage of quantile estimation method largely depending on sample size
+# Roughly when having more than 100 than empirical is fine
+# for window try gdp, wak an weighted
+# gdp usually only for tail of distribution (e.g. > 90%)
+# wak used in US?
+
+# Next:
+# >adapt function, different parallelization (determine parameters of distribution only once and then extract all desired probs)
+
+
+
+str(dat_annu)
+
+round( extremeStat::distLquantile(dat_annu$values[47000 + 1:30], truncate=0, probs=c(0:9,9.5,9.9)/10, selection="gpa", gpd=FALSE, weighted=FALSE) )
+library(extremeStat)
+for(i in sample(30000:nrow(dat_annu), size = 50))
+plotLquantile(distLquantile(dat_annu$values[59000 + 1:90], list=T, truncate=0, gpd=FALSE, weighted=FALSE), nbest=10)
+
+
+( distLquantile(dat_annu$values[59000 + 1:90], truncate=0, gpd=FALSE) )
+
+#get quantile estimations from different distributions (based on R package lmomco)
+distLquantile(dat_annu$values[59000 + 1:90], truncate=0, gpd=FALSE)["weighted3", -4] # letzte Spalte RMSE
+#truncate: how much of data used to fit distribution       
+#weighted, wak, gpd, 
+       
+              
+GPDquantile <- function(x, probs)
+{
+  NA_output <- rep(NA, length(probs))
+  mom <- lmomco::lmoms(x, nmom=5)
+  if(!lmomco::are.lmom.valid(mom)) return(NA_output)
+  param <- lmomco::lmom2par(mom, type="gpa")
+  if(is.null(param)) return(NA_output)
+  if(all(is.na(x))) return(NA_output)
+  lmomco::qlmomco(f=probs, para=param)
+}
+
+GPDquantile(dat_annu$values[47000 + 1:30], probs=c(0:9,9.5,9.9)/10 )
+
+
+compare_gpd_empirical <- function(i)
+{
+ x <- dat_annu$values[i + 1:30]
+ param <- GPDquantile(x, probs=quants)
+ empir <- quantile(x, probs=quants, type=8)
+ #plot(quants, param, type="l", log="y", ylim=range(param,empir), yaxt="n")
+ #berryFunctions::logAxis(2)
+ lines(quants, param)
+ lines(quants, empir, col="red")
+}
+
+plot(0:1, 0:1, ylim=c(500,1500), type="n")
+for(i in sample(30000:nrow(dat_annu), size = 20)) compare_gpd_empirical(i)

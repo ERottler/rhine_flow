@@ -7,12 +7,18 @@
 
 #parameter----
 
-gaug_exce <- "Basel_Rheinhalle_2" #Koeln, Basel_Rheinhalle_2, Cochem, Rekingen_2, Diepoldsau_2, Davos, Gsteig
-is_grdc_data <- T #usa grdc data selected; gauge_exce ingored
-sta_yea_emd <- 1869
-end_yea_emd <- 2012
+gaug_exce <- "Worms" #Diepoldsau_2, Mellingen, Brugg, Basel_Rheinhalle_2, Rockenau, Cochem, Frankfurt, Grolsheim, Kaub, Koeln, Worms, Rockenau,     
+is_grdc_data <- F #usa grdc data selected; gauge_exce ingored
+sta_yea_emd <- 1961
+end_yea_emd <- 2010
 quants <- seq(0.99, 0.01, by = -0.01)
-quant_method <- "empirical" #empirical, gev
+quant_method_val <- "empirical" #empirical, gev, gpd
+quant_method_slo <- "gpd" #empirical, gev, gpd
+
+
+# stat_sel <-  "Frankfurt"
+# dis_length <- dis$date[max(which(!is.na(dis[, which(colnames(dis) == stat_sel)])))]
+# dis_length
 
 #quan_cal----
 
@@ -38,7 +44,7 @@ f_qvalu <- function(quant_sel){dis_ana(disc = dis_sel,
                                        quant_in = quant_sel,
                                        window_width = window_width,
                                        method_analys = "quantile",
-                                       method_quant = quant_method
+                                       method_quant = quant_method_val
 )}
 
 qvalu_long <- foreach(k = quants, .combine = 'cbind') %dopar%{
@@ -46,19 +52,30 @@ qvalu_long <- foreach(k = quants, .combine = 'cbind') %dopar%{
 }
 
 #Quantile value trend
-f_qvslo <- function(quant_sel){dis_ana(disc = dis_sel,
-                                       date = dat_sel,
-                                       start_year = sta_yea_emd,
-                                       end_year = end_yea_emd,
-                                       quant_in = quant_sel,
-                                       window_width = window_width,
-                                       method_analys = "mov_quant_trend",
-                                       method_quant = quant_method
-)}
 
-qvslo_long <- foreach(k = quants, .combine = 'cbind') %dopar%{
-  f_qvslo(k)
-}
+qvslo_long <- dis_ana(disc = dis_sel,
+                      date = dat_sel,
+                      start_year = sta_yea_emd,
+                      end_year = end_yea_emd,
+                      quant_in = quants,
+                      window_width = window_width,
+                      method_analys = "mov_quant_trend",
+                      method_quant = quant_method_slo
+)
+
+# f_qvslo <- function(quant_sel){dis_ana(disc = dis_sel,
+#                                        date = dat_sel,
+#                                        start_year = sta_yea_emd,
+#                                        end_year = end_yea_emd,
+#                                        quant_in = quant_sel,
+#                                        window_width = window_width,
+#                                        method_analys = "mov_quant_trend",
+#                                        method_quant = quant_method
+# )}
+# 
+# qvslo_long <- foreach(k = quants, .combine = 'cbind') %dopar%{
+#   f_qvslo(k)
+# }
 
 #quan_vis----
 

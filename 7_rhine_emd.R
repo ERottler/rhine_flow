@@ -9,7 +9,7 @@
 vari_sel <- "tem0" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
 stat_sel <- "Hohenpeissenberg" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901), BER (1864), BAS (1864), DZUG (1901), SMA, Hohenpeissenberg
 sta_yea_emd <- 1869
-end_yea_emd <- 2017
+end_yea_emd <- 2012
 window_width <- 30 
 do_ma_emd <- T # do moving average
 do_na_fil_emd <- T
@@ -146,6 +146,9 @@ if(vari_sel == "grdc"){
   data_emd <- grdc_data
   emd_sel <- data.frame(dates = grdc_data$date,
                         values= grdc_data$value)
+  sta_day_emd <- paste0(sta_yea_emd, "-01-01")
+  end_day_emd <- paste0(end_yea_emd, "-12-31")
+  
 }else{
   
   sta_day_emd <- paste0(sta_yea_emd, "-01-01")
@@ -287,7 +290,7 @@ if(do_scale_emd){
   #   
   # }
   
-  #substract median
+  #center restuls by substract mean (omitting NAs)
   emd_resid_meas <- apply(emd_resid, 2, mea_na)
 
   for (i in 1:ncol(emd_resid)) {
