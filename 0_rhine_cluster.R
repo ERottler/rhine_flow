@@ -5,7 +5,7 @@
 
 ###
 
-n_cores <- 50 #number of cores used for parallel computing
+n_cores <- 45 #number of cores used for parallel computing
 
 #stop cluster
 stopCluster(my_clust)

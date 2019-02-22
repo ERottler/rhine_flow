@@ -85,6 +85,142 @@ source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
 
 
 
+# 
+# load("u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/data/rhine_flow_app.RData")
+# 
+# save(qvalu_long_diep, qvslo_long_diep, 
+#      qvalu_long_mell, qvslo_long_mell,
+#      qvalu_long_brug, qvslo_long_brug,
+#      qvalu_long_base, qvslo_long_base,
+#      qvalu_long_coch, qvslo_long_coch,
+#      qvalu_long_grol, qvslo_long_grol,
+#      qvalu_long_koel, qvslo_long_koel,
+#      qvalu_long_kaub, qvslo_long_kaub,
+#      qvalu_long_rock, qvslo_long_rock, 
+#      qvalu_long_kalk, qvslo_long_kalk,
+#      qvalu_long_fran, qvslo_long_fran,
+#      qvalu_long_worm, qvslo_long_worm,
+#      
+#      meta_grid_bands_diep, my_elev_bands_diep,
+#      tmed_band_diep, tmed_band_med_diep,
+#      tslo_band_diep, tslo_band_med_diep,
+#      pmea_band_diep, pmea_band_med_diep,
+#      pslo_band_diep, pslo_band_med_diep,
+#      emed_band_diep, emed_band_med_diep,
+#      eslo_band_diep, eslo_band_med_diep,
+#      smea_band_diep, vmea_band_diep, 
+#      vdif_band_diep, vdis_band_diep,
+#      
+#      meta_grid_bands_mell, my_elev_bands_mell,
+#      tmed_band_mell, tmed_band_med_mell,
+#      tslo_band_mell, tslo_band_med_mell,
+#      pmea_band_mell, pmea_band_med_mell,
+#      pslo_band_mell, pslo_band_med_mell,
+#      emed_band_mell, emed_band_med_mell,
+#      eslo_band_mell, eslo_band_med_mell,
+#      smea_band_mell, vmea_band_mell, 
+#      vdif_band_mell, vdis_band_mell,
+#      
+#      meta_grid_bands_brug, my_elev_bands_brug,
+#      tmed_band_brug, tmed_band_med_brug,
+#      tslo_band_brug, tslo_band_med_brug,
+#      pmea_band_brug, pmea_band_med_brug,
+#      pslo_band_brug, pslo_band_med_brug,
+#      emed_band_brug, emed_band_med_brug,
+#      eslo_band_brug, eslo_band_med_brug,
+#      smea_band_brug, vmea_band_brug, 
+#      vdif_band_brug, vdis_band_brug,
+#      
+#      meta_grid_bands_neck, my_elev_bands_neck,
+#      tmed_band_neck, tmed_band_med_neck,
+#      tslo_band_neck, tslo_band_med_neck,
+#      pmea_band_neck, pmea_band_med_neck,
+#      pslo_band_neck, pslo_band_med_neck,
+#      emed_band_neck, emed_band_med_neck,
+#      eslo_band_neck, eslo_band_med_neck,
+#      smea_band_neck, vmea_band_neck, 
+#      vdif_band_neck, vdis_band_neck,
+#      
+#      meta_grid_bands_mose, my_elev_bands_mose,
+#      tmed_band_mose, tmed_band_med_mose,
+#      tslo_band_mose, tslo_band_med_mose,
+#      pmea_band_mose, pmea_band_med_mose,
+#      pslo_band_mose, pslo_band_med_mose,
+#      emed_band_mose, emed_band_med_mose,
+#      eslo_band_mose, eslo_band_med_mose,
+#      smea_band_mose, vmea_band_mose, 
+#      vdif_band_mose, vdis_band_mose,
+#      
+#      meta_grid_bands_nahe, my_elev_bands_nahe,
+#      tmed_band_nahe, tmed_band_med_nahe,
+#      tslo_band_nahe, tslo_band_med_nahe,
+#      pmea_band_nahe, pmea_band_med_nahe,
+#      pslo_band_nahe, pslo_band_med_nahe,
+#      emed_band_nahe, emed_band_med_nahe,
+#      eslo_band_nahe, eslo_band_med_nahe,
+#      smea_band_nahe, vmea_band_nahe, 
+#      vdif_band_nahe, vdis_band_nahe,
+#      
+#      meta_grid_bands_lahn, my_elev_bands_lahn,
+#      tmed_band_lahn, tmed_band_med_lahn,
+#      tslo_band_lahn, tslo_band_med_lahn,
+#      pmea_band_lahn, pmea_band_med_lahn,
+#      pslo_band_lahn, pslo_band_med_lahn,
+#      emed_band_lahn, emed_band_med_lahn,
+#      eslo_band_lahn, eslo_band_med_lahn,
+#      smea_band_lahn, vmea_band_lahn, 
+#      vdif_band_lahn, vdis_band_lahn,
+#      
+#      meta_grid_bands_main, my_elev_bands_main,
+#      tmed_band_main, tmed_band_med_main,
+#      tslo_band_main, tslo_band_med_main,
+#      pmea_band_main, pmea_band_med_main,
+#      pslo_band_main, pslo_band_med_main,
+#      emed_band_main, emed_band_med_main,
+#      eslo_band_main, eslo_band_med_main,
+#      smea_band_main, vmea_band_main, 
+#      vdif_band_main, vdis_band_main,
+#      
+#      meta_grid_bands_base, my_elev_bands_base,
+#      tmed_band_base, tmed_band_med_base,
+#      tslo_band_base, tslo_band_med_base,
+#      pmea_band_base, pmea_band_med_base,
+#      pslo_band_base, pslo_band_med_base,
+#      emed_band_base, emed_band_med_base,
+#      eslo_band_base, eslo_band_med_base,
+#      smea_band_base, vmea_band_base, 
+#      vdif_band_base, vdis_band_base,
+#      
+#      file = "u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/data/rhine_flow_app.RData")
+# 
+# 
+# 
+# 
+# meta_grid_bands_base <- meta_grid_bands
+# my_elev_bands_base <- my_elev_bands
+# tmed_band_base <- tmed_band
+# tmed_band_med_base <- tmed_band_med
+# tslo_band_base <- tslo_band
+# tslo_band_med_base <- tslo_band_med
+# pmea_band_base <- pmea_band
+# pmea_band_med_base <- pmea_band_med
+# pslo_band_base <- pslo_band
+# pslo_band_med_base <- pslo_band_med
+# emed_band_base <- emed_band
+# emed_band_med_base <- emed_band_med
+# eslo_band_base <- eslo_band
+# eslo_band_med_base <- eslo_band_med
+# 
+# smea_band_base <- smea_band
+# vmea_band_base <- vmea_band
+# vdif_band_base <- vdif_band
+# vdis_band_base <- vdis_band
+# 
+# 
+# 
+# 
+
+
 
 
 

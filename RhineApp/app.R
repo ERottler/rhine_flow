@@ -2,7 +2,7 @@
 
 #Rhine river basin flow changes: Shiny app
 #Erwin Rottler, Universtiy of Potsdam
-#September 2019
+#February 2019
 
 ###
 
@@ -17,9 +17,10 @@ library(viridis)
 library(shinythemes)
 library(alptempr)
 library(zoo)
+library(emdbook)
 
-base_dir <- "u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/"
-# base_dir  <- "/srv/shiny-server/RhineApp/"
+# base_dir <- "u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/"
+base_dir  <- "/srv/shiny-server/RhineApp/"
 bg_color <- "gray90"
 
 #Load basin boundaries (shapefile delineated beforehand using GIS)
@@ -58,7 +59,9 @@ sh_mose <- sp::spTransform(sh_mose, CRS = crswgs84)
 sh_neck <- sp::spTransform(sh_neck, CRS = crswgs84)
 sh_griv <- sp::spTransform(sh_griv, CRS = crswgs84)
 
-load(paste0(base_dir, "data/rhine_flow_app_old.RData"))
+# load(paste0(base_dir, "data/rhine_flow_app_old.RData"))
+# base_dir <- "u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/"
+load(paste0(base_dir, "data/rhine_flow_app.RData"))
 
 #user_interface####
 ui <- fluidPage(theme = shinytheme("superhero"),
@@ -70,6 +73,7 @@ ui <- fluidPage(theme = shinytheme("superhero"),
     tags$h5("Erwin Rottler, Till Francke, Gerd Bürger and Axel Bronstert"),
     tags$h6("Institut für Umweltwissenschaften und Geographie, Universität Potsdam"),
     hr(),
+    
     column(
       width = 6,
       wellPanel(
@@ -79,15 +83,27 @@ ui <- fluidPage(theme = shinytheme("superhero"),
           leaflet::leafletOutput(outputId = "map", height = 350)
         )
       ),
+      
       wellPanel(
       checkboxInput(inputId = "condi_clim", label = strong("Klima")),
       conditionalPanel(
           condition = "input.condi_clim == true",
           textOutput(outputId = "basin_select_clim"),
-          plotOutput(outputId = "plot_clim", height = 500)
+          plotOutput(outputId = "plot_clim", height = 350)
+        )#conditional Panel
+      ),#wellPanel
+      
+      wellPanel(
+        checkboxInput(inputId = "condi_smea", label = strong("Schnee")),
+        conditionalPanel(
+          condition = "input.condi_smea == true",
+          #textOutput(outputId = "basin_select_clim")
+          plotOutput(outputId = "plot_smea", height = 350)
         )#conditional Panel
       )#wellPanel
-    ),
+      
+    ),#column left
+    
     # separate the box by a column
     column(
       width = 6,
@@ -98,20 +114,31 @@ ui <- fluidPage(theme = shinytheme("superhero"),
           plotOutput(outputId = "plot_disc", height = 350)
         )#conditional Panel
       ),
+      
       wellPanel(
         checkboxInput(inputId = "condi_clic", label = strong("Klimaänderung")),
         conditionalPanel(
           condition = "input.condi_clic == true",
           textOutput(outputId = "basin_select_clic"),
-          plotOutput(outputId = "plot_clic", height = 500)
+          plotOutput(outputId = "plot_clic", height = 350)
+        )#conditional Panel
+      ),#wellPanel
+      
+      wellPanel(
+        checkboxInput(inputId = "condi_sslo", label = strong("Schneeänderung")),
+        conditionalPanel(
+          condition = "input.condi_sslo == true",
+          #textOutput(outputId = "basin_select_clim")
+          plotOutput(outputId = "plot_sslo", height = 350)
         )#conditional Panel
       )#wellPanel
+      
     ),
     column(
       width = 12,
     wellPanel(
-      tags$p("Sollten Sie Fragen oder Anregungen haben, bitte zögern Sie nicht uns zu kontaktieren: rottler(at)uni-potsdam.de"),
-      tags$p("Diese Analysen werden durch die Deutsche Forschungsgemeinschaft (DFG) im Rahmen des Graduiertenkollegs 'NatRiskChange' gefördert (www.natriskchange.de).")
+      tags$p("Sollten Sie Fragen oder Anregungen haben, zögern Sie bitte nicht uns zu kontaktieren: rottler(at)uni-potsdam.de"),
+      tags$p("Gefördert durch die Deutsche Forschungsgemeinschaft (DFG) im Rahmen des Graduiertenkollegs 'NatRiskChange' (www.natriskchange.de).")
       )
     )
   ) # end of the box
@@ -134,36 +161,36 @@ rhine_map <- shiny::reactive({
     # Overlay groups
     addPolygons(data = sh_lobi, layerId = "lobith", fillOpacity = 0)%>%
     addPolygons(data = sh_alpr, layerId = "alp_rhine", fillOpacity = 0.4, group = "click.list",
-                label = "Alpine Rhine measured at gauge Diepoldsau", color = "red",
+                label = "Alpenrhein bis Pegel Diepoldsau", color = "red",
                 # popup = "Alpine Rhine measured at gauge Diepoldsau",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_reus, layerId = "reuss", fillOpacity = 0.4, group = "click.list",
-                label = "Reuss catchment measured at gauge Mellingen", color = "red",
+                label = "Reuss bis Pegel Mellingen", color = "red",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_aare, layerId = "aare", fillOpacity = 0.4, group = "click.list",
-                label = "Aare catchment measured at gauge Brugg", color = "red",
+                label = "Aare bis Pegel Brugg", color = "red",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_mose, layerId = "moselle",fillOpacity = 0.4, group = "click.list",
-                label = "Moselle catchment measured at gauge Cochem",
+                label = "Mosel bis Pegel Cochem",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_neck, layerId = "neckar", fillOpacity = 0.4, group = "click.list",
-                label = "Neckar catchment measured at gauge Rockenau",
+                label = "Neckar bis Pegel Rockenau",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_nahe, layerId = "nahe", fillOpacity = 0.4, group = "click.list",
-                label = "Nahe catchment measured at gauge Grolsheim",
+                label = "Nahe bis Pegel Grolsheim",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_lahn, layerId = "lahn", fillOpacity = 0.4, group = "click.list",
-                label = "Lahn catchment measured at gauge Kalkofen",
+                label = "Lahn bis Pegel Kalkofen",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addPolygons(data = sh_main, layerId = "main", fillOpacity = 0.4, group = "click.list",
-                label = "Main catchment measured at gauge Frankfurt",
+                label = "Main bis Pegel Frankfurt",
                 highlightOptions = highlightOptions(color = "white", weight = 5, bringToFront = TRUE),
                 labelOptions = labelOptions(noHide = F, direction = "right", offset = c(10, -20)))%>%
     addCircleMarkers(data = sh_griv, label = ~name, color = "black", stroke = F, fillOpacity = 0.4,
@@ -189,32 +216,36 @@ rhine_map <- shiny::reactive({
 output$map <- renderLeaflet({
   
   rhine_map()
+  # plot(1:10, 1:10)
   
 }) # end of leaflet::renderLeaflet({})
 
-#Start plots (Nahe-Grolsheim)
-i = which(colnames(dis_sel) == "Grolsheim")
-output$basin_select_clim <- renderText({"Nahe river catchment until gauge Grolsheim"})
-output$basin_select_clic <- renderText({"Nahe river catchment until gauge Grolsheim"})
+#Start plots
+output$basin_select_clim <- renderText({"Alpenrhein bis Pegel Diepoldsau"})
+output$basin_select_clic <- renderText({"Alpenrhein bis Pegel Diepoldsau"})
+qvalu_long <- qvalu_long_diep
+qvslo_long <- qvslo_long_diep
 
-meta_grid <- meta_grid_nahe
-my_no_col <- T
-tmed <- tmed_nahe
-tmed_med <- tmed_med_nahe
-pmea <- pmea_nahe
-pmea_med <- pmea_med_nahe
-emed <- emed_nahe
-emed_med <- emed_med_nahe
-smea <- smea_nahe
-smea_mea <- smea_mea_nahe
-tslo <- tslo_nahe
-tslo_med <- tslo_med_nahe
-pslo <- pslo_nahe
-pslo_med <- pslo_med_nahe
-eslo <- eslo_nahe
-eslo_med <- eslo_med_nahe
-sslo <- sslo_nahe
-sslo_mea <- sslo_mea_nahe
+my_no_col <- F
+meta_grid_bands <- meta_grid_bands_diep
+my_elev_bands <- my_elev_bands_diep
+tmed_band <- tmed_band_diep
+tmed_band_med <- tmed_band_med_diep
+tslo_band <- tslo_band_diep
+tslo_band_med <- tslo_band_med_diep
+pmea_band <- pmea_band_diep
+pmea_band_med <- pmea_band_med_diep
+pslo_band <- pslo_band_diep
+pslo_band_med <- pslo_band_med_diep
+emed_band <- emed_band_diep
+emed_band_med <- emed_band_med_diep
+eslo_band <- eslo_band_diep
+eslo_band_med <- eslo_band_med_diep
+
+smea_band <- smea_band_diep
+vmea_band <- vmea_band_diep
+vdif_band <- vdif_band_diep
+vdis_band <- vdis_band_diep
 
 f_plot_disc <- function(){
   
@@ -222,51 +253,9 @@ f_plot_disc <- function(){
   par(oma=c(0,0,0,0))
   par(family="serif")
   
-  z <- 1:99 + (i-1)*99
-  
   layout(matrix(c(rep(c(1,3), 7),
                   2,4),
                 2, 8), widths=c(), heights=c(1,1))
-  
-  # cols_1 <- colorRampPalette(c("darkblue", "blue", "deepskyblue", "grey90", "yellow2","orange", "red3"))(200)
-  cols_1 <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90", 
-                               "yellow2","gold2", "orange2", "orangered3", "orangered4"))(200)
-  
-  image_flow(data_in   = qprob[, z],
-             colors    = cols_1,
-             breaks    = seq(0, 100, length.out=201),
-             main      = paste0(colnames(dis_sel)[i], ": Quantile exceedance probab. [%]"),
-             ylab      = "Quantile",
-             margins_1 = c(1.6,2.5,1.6,0),
-             margins_2 = c(1.6,0.5,1.6,1.7)
-  )
-  
-  n_max <- round(abs(max_na(qmove[, z])) / (max_na(qmove[, z]) + abs(min_na(qmove[, z]))), digits = 2) * 200
-  n_min <- 200 - n_max
-  cols_min <- colorRampPalette(c("darkblue", "blue", "deepskyblue", "grey90"))(n_min)
-  cols_max <- colorRampPalette(c("grey90", "yellow", "orange", "red3"))(n_max)
-  cols_2 <- c(cols_min, cols_max)
-  
-  n_max <- round(abs(max_na(qmove[, z])) / (max_na(qmove[, z]) + abs(min_na(qmove[, z]))), digits = 2) * 200
-  n_min <- 200 - n_max
-  cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
-  cols_max <- colorRampPalette(c("grey90", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-  cols_2 <- c(cols_min, cols_max)
-  
-  image_flow(data_in <- qmove[, z],
-             colors <- cols_2,
-             breaks = seq(min_na(qmove[, z]), max_na(qmove[, z]), length.out = length(cols_2) +1),
-             main <- paste0(colnames(dis_sel)[i], ": Trend moving quantile exceedance prob. [%/dec]"),
-             ylab <- "Quantile",
-             margins_1 = c(1.6,2.5,1.6,0),
-             margins_2 = c(1.6,0.5,1.6,1.7)
-  )
-  
-}
-f_plot_disc <- function(){
-  
-  layout(matrix(c(1,1,1,1,1,1,1,2),
-                1, 8), widths=c(), heights=c())
   
   x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
   x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
@@ -295,7 +284,7 @@ f_plot_disc <- function(){
         xlab = "", axes = F)
   
   axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
-  mtext("Quantile", 2, 1.5, cex = 0.8)
+  mtext("Quantil", 2, 1.5, cex = 0.8)
   
   axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
        col = "black", col.axis = "black", tck = -0.03)#plot ticks
@@ -307,15 +296,12 @@ f_plot_disc <- function(){
   
   alptempr::image_scale(as.matrix(qvalu_long), col = cols_qvalu, breaks = breaks_qvalu, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
   axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
-  mtext("Discharge [m³/sec]", side = 4, line = 1.5, cex = 0.8)
+  mtext("Abfluss [m³/sec]", side = 4, line = 1.5, cex = 0.8)
   
   box()
   
   
   #Plot: Trend moving quantile
-  
-  layout(matrix(c(1,1,1,1,1,1,1,2),
-                1, 8), widths=c(), heights=c())
   
   x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
   x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
@@ -339,7 +325,7 @@ f_plot_disc <- function(){
         xlab = "", axes = F)
   
   axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
-  mtext("Quantile", 2, 1.5, cex = 0.8)
+  mtext("Quantil", 2, 1.5, cex = 0.8)
   
   axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
        col = "black", col.axis = "black", tck = -0.03)#plot ticks
@@ -351,7 +337,7 @@ f_plot_disc <- function(){
   
   alptempr::image_scale(as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
   axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
-  mtext("Trend window quantiles [m³/sec/dec]", side = 4, line = 1.5, cex = 0.8)
+  mtext("Trend Fenster-Quantil [m³/sec/10a]", side = 4, line = 1.5, cex = 0.8)
   
   box()
   
@@ -362,32 +348,27 @@ f_plot_clim <- function(){
   par(oma=c(0,0,0,0))
   par(family="serif")
   
-  layout(matrix(c(1,3,5,7,
-                  2,4,6,8), 4, 2), widths=c(1, 1), heights=rep(1, 4))
+  layout(matrix(c(1,3,5,
+                  2,4,6), 3, 2), widths=c(1, 1), heights=rep(1, 3))
   
-  plot_cycl_elev(data_in = tmed, data_mk = tmed, data_in_me = tmed_med,
-                 data_meta = meta_grid, main_text = paste0("Temperature [°C]"),
+  plot_cycl_elev(data_in = tmed_band, data_mk = tmed_band, data_in_me = tmed_band_med,
+                 data_meta = meta_grid_bands, main_text = paste0("Temperatur [°C]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                 no_col = F, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
   
-  plot_cycl_elev(data_in = pmea, data_mk = pmea, data_in_me = pmea_med,
-                 data_meta = meta_grid, main_text = paste0("Precipitation [mm]"),
+  plot_cycl_elev(data_in = pmea_band, data_mk = pmea_band, data_in_me = pmea_band_med,
+                 data_meta = meta_grid_bands, main_text= paste0("Niederschlag [mm]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                 no_col = F, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
   
-  plot_cycl_elev(data_in = emed, data_mk = emed, data_in_me = emed_med,
-                 data_meta = meta_grid, main_text = paste0("Evapotranspiration [mm]"),
+  plot_cycl_elev(data_in = emed_band, data_mk = emed_band, data_in_me = emed_band_med,
+                 data_meta = meta_grid_bands, main_text= paste0("Evapotranspiration [mm]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                 no_col = F, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
   
-  plot_cycl_elev(data_in = smea, data_mk = smea, data_in_me = smea_mea,
-                 data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm]"),
-                 margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
 }
 f_plot_clic <- function(){
   
@@ -395,37 +376,209 @@ f_plot_clic <- function(){
   par(oma=c(0,0,0,0))
   par(family="serif")
   
-  layout(matrix(c(1,3,5,7,
-                  2,4,6,8), 4, 2), widths=c(1, 1), heights=rep(1, 4))
+  layout(matrix(c(1,3,5,
+                  2,4,6), 3, 2), widths=c(1, 1), heights=rep(1, 3))
   
-  plot_cycl_elev(data_in = tslo, data_mk = tslo, data_in_me = tslo_med,
-                 data_meta = meta_grid, main_text = paste0("Temperature [°C/dec]"),
+  plot_cycl_elev(data_in = tslo_band, data_mk = tslo_band, data_in_me = tslo_band_med,
+                 data_meta = meta_grid_bands, main_text = paste0("Temperatur [°C/10a]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                 no_col = F, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
   
-  plot_cycl_elev(data_in = pslo, data_mk = pslo, data_in_me = pslo_med,
-                 data_meta = meta_grid, main_text = paste0("Precipitation [mm/dec]"),
+  plot_cycl_elev(data_in = pslo_band, data_mk = pslo_band, data_in_me = pslo_band_med,
+                 data_meta = meta_grid_bands, main_text = paste0("Niederschlag [mm/10a]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                 no_col = F, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
   
-  plot_cycl_elev(data_in = eslo, data_mk = eslo, data_in_me = eslo_med,
-                 data_meta = meta_grid, main_text = paste0("Evapotranspiration [mm/dec]"),
+  plot_cycl_elev(data_in = eslo_band, data_mk = eslo_band, data_in_me = eslo_band_med,
+                 data_meta = meta_grid_bands, main_text = paste0("Evapotranspiration [mm/10a]"),
                  margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                 no_col = F, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+}
+f_plot_smea <- function(){
   
-  plot_cycl_elev(data_in = sslo, data_mk = sslo, data_in_me = sslo_mea,
-                 data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm/dec]"),
-                 margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                 no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
-                 smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+  par(bg = "grey92")
+  par(oma=c(0,0,0,0))
+  par(family="serif")
+  
+  layout(matrix(c(rep(c(1,3), 7),
+                  2,4),
+                2, 8), widths=c(), heights=c(1,1))
+  
+  #Snow depth elevation band
+  par(mar = c(1.6, 3, 0.6, 0))
+  
+  x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  
+  my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                               "yellow2","gold", "orange2", "orangered2"))(200)
+  
+  n_max <- round(abs(max_na(smea_band[, ])) / (max_na(smea_band[, ]) + abs(min_na(smea_band[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  
+  cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+  cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+  # my_col <- c(cols_min, cols_max)
+  
+  my_bre <- seq(min_na(smea_band), max_na(smea_band), length.out = length(my_col)+1)
+  
+  image(x = 1:365,
+        y = my_elev_bands[-length(my_elev_bands)],
+        z = smea_band, col =my_col, breaks = my_bre,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.06)#plot ticks
+  axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+       col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+  mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+  box()
+  
+  par(mar = c(1.6, 0.5, 0.6, 2.7))
+  
+  image_scale(as.matrix(smea_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+  mtext("Schnee-Wasser-Equ. [m]", side = 4, line = 1.5, cex = 0.8)
+  
+  box()
+  
+  #Snow volume elevation band
+  par(mar = c(1.6, 3, 0.6, 0))
+  
+  x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  
+  my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                               "yellow2","gold", "orange2", "orangered2"))(200)
+  
+  n_max <- round(abs(max_na(vmea_band[, ])) / (max_na(vmea_band[, ]) + abs(min_na(vmea_band[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  
+  cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+  cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+  # my_col <- c(cols_min, cols_max)
+  
+  my_bre <- seq(min_na(vmea_band), max_na(vmea_band), length.out = length(my_col)+1)
+  
+  image(x = 1:365,
+        y = my_elev_bands[-length(my_elev_bands)],
+        z = vmea_band, col =my_col, breaks = my_bre,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.06)#plot ticks
+  axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+       col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+  mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+  box()
+  
+  par(mar = c(1.6, 0.5, 0.6, 2.7))
+  
+  image_scale(as.matrix(vmea_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+  mtext("Schnee volumen [m³]", side = 4, line = 1.5, cex = 0.8)
+  
+  box()
+  
+  
+}
+f_plot_sslo <- function(){
+  
+  par(bg = "grey92")
+  par(oma=c(0,0,0,0))
+  par(family="serif")
+  
+  layout(matrix(c(rep(c(1,3), 7),
+                  2,4),
+                2, 8), widths=c(), heights=c(1,1))
+  
+  
+  #Snow difference mean
+  par(mar = c(1.6, 3, 0.6, 0))
+  
+  x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  
+  my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                               "yellow2","gold", "orange2", "orangered2"))(200)
+  
+  n_max <- round(abs(max_na(vdif_band[, ])) / (max_na(vdif_band[, ]) + abs(min_na(vdif_band[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  
+  cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+  cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+  my_col <- c(cols_min, cols_max)
+  
+  my_bre <- seq(min_na(vdif_band), max_na(vdif_band), length.out = length(my_col)+1)
+  
+  image(x = 1:365,
+        y = my_elev_bands[-length(my_elev_bands)],
+        z = vdif_band, col =my_col, breaks = my_bre,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.06)#plot ticks
+  axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+       col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+  mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+  box()
+  
+  par(mar = c(1.6, 0.5, 0.6, 2.7))
+  
+  image_scale(as.matrix(vdif_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+  mtext("Diff. Schnee-Volumen [m³]", side = 4, line = 1.5, cex = 0.8)
+  
+  box()
+  
+  #Snow difference trend
+  par(mar = c(1.6, 3, 0.6, 0))
+  
+  x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  
+  my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                               "yellow2","gold", "orange2", "orangered2"))(200)
+  
+  n_max <- round(abs(max_na(vdis_band[, ])) / (max_na(vdis_band[, ]) + abs(min_na(vdis_band[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  
+  cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+  cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+  my_col <- c(cols_min, cols_max)
+  
+  my_bre <- seq(min_na(vdis_band), max_na(vdis_band), length.out = length(my_col)+1)
+  
+  image(x = 1:365,
+        y = my_elev_bands[-length(my_elev_bands)],
+        z = vdis_band, col =my_col, breaks = my_bre,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.06)#plot ticks
+  axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+       col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+  mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+  box()
+  
+  par(mar = c(1.6, 0.5, 0.6, 2.7))
+  
+  image_scale(as.matrix(vdis_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+  mtext("Diff. Schnee-Volumen [m³/10a]", side = 4, line = 1.5, cex = 0.8)
+  
+  box()
+  
 }
 
 output$plot_disc <-  renderPlot({f_plot_disc()})
 output$plot_clim <-  renderPlot({f_plot_clim()})
 output$plot_clic <-  renderPlot({f_plot_clic()})
+output$plot_smea <-  renderPlot({f_plot_smea()})
+output$plot_sslo <-  renderPlot({f_plot_sslo()})
 
 #Selection gauge via click in map
 gauge_sel <-  shiny::reactiveValues(clicked_gauge = "Basel")
@@ -435,93 +588,418 @@ observeEvent(input$map_marker_click,{
   gauge_sel$clicked_gauge <- input$map_marker_click
   # print(gauge_sel$clicked_gauge$lat)
   
-  if(paste(gauge_sel$clicked_gauge$lat) == "47.55927"){
-    
-    output$basin_select_clim <- renderText({"Select sub-basin"})
-    output$basin_select_clic <- renderText({"Select sub-basin"})
-    i = which(colnames(dis_sel) == "Basel_Rheinhalle")
-    
-  }
   if(paste(gauge_sel$clicked_gauge$lat) == "49.6318"){
     
     output$basin_select_clim <- renderText({"Select sub-basin"})
     output$basin_select_clic <- renderText({"Select sub-basin"})
-    i = which(colnames(dis_sel) == "Worms")
+    qvalu_long <- qvalu_long_worm
+    qvslo_long <- qvslo_long_worm
     
   }
   if(paste(gauge_sel$clicked_gauge$lat) == "50.08561"){
     
     output$basin_select_clim <- renderText({"Select sub-basin"})
     output$basin_select_clic <- renderText({"Select sub-basin"})
-    i = which(colnames(dis_sel) == "Kaub")
+    qvalu_long <- qvalu_long_kaub
+    qvslo_long <- qvslo_long_kaub
     
   }
   if(paste(gauge_sel$clicked_gauge$lat) == "50.937"){
     
     output$basin_select_clim <- renderText({"Select sub-basin"})
     output$basin_select_clic <- renderText({"Select sub-basin"})
-    i = which(colnames(dis_sel) == "Koeln")
+    qvalu_long <- qvalu_long_koel
+    qvslo_long <- qvslo_long_koel
     
   }
   
   f_plot_disc <- function(){
     
+    par(bg = "grey92")
     par(oma=c(0,0,0,0))
     par(family="serif")
-    
-    z <- 1:99 + (i-1)*99
     
     layout(matrix(c(rep(c(1,3), 7),
                     2,4),
                   2, 8), widths=c(), heights=c(1,1))
     
-    # cols_1 <- colorRampPalette(c("darkblue", "blue", "deepskyblue", "grey90", "yellow2","orange", "red3"))(200)
-    cols_1 <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90", 
-                                 "yellow2","gold2", "orange2", "orangered3", "orangered4"))(200)
+    x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+    ytiks      <- seq(10, 90, by =  10)
+    ylabs      <- seq(90, 10, by = -10) 
     
-    image_flow(data_in   = qprob[, z],
-               colors    = cols_1,
-               breaks    = seq(0, 100, length.out=201),
-               main      = paste0(colnames(dis_sel)[i], ": Quantile exceedance probab. [%]"),
-               ylab      = "Quantile",
-               margins_1 = c(1.6,2.5,1.6,0),
-               margins_2 = c(1.6,0.5,1.6,1.7)
-    )
+    cols_qvalu <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white", 
+                                                "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
     
-    n_max <- round(abs(max_na(qmove[, z])) / (max_na(qmove[, z]) + abs(min_na(qmove[, z]))), digits = 2) * 200
+    max_break <- max_na(qvalu_long)
+    min_break <- min_na(qvalu_long)
+    qua_break <- quantile(qvalu_long, probs = 0.7, type = 8, na.rm = T)
+    
+    breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
+    breaks_2 <- lseq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
+    breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + 0.1
+    
+    breaks_qvalu <- c(breaks_1, breaks_2)
+    
+    y <- 1:ncol(qvalu_long)
+    x <- 1:365
+    
+    par(mar = c(1.6, 3, 0.6, 0))
+    
+    image(x, y, as.matrix(qvalu_long), col = cols_qvalu, breaks = breaks_qvalu, ylab = "",
+          xlab = "", axes = F)
+    
+    axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
+    mtext("Quantil", 2, 1.5, cex = 0.8)
+    
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.03)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.3, 0))#plot labels
+    box()
+    
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+    
+    alptempr::image_scale(as.matrix(qvalu_long), col = cols_qvalu, breaks = breaks_qvalu, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Abfluss [m³/sec]", side = 4, line = 1.5, cex = 0.8)
+    
+    box()
+    
+    
+    #Plot: Trend moving quantile
+    
+    x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+    ytiks      <- seq(10, 90, by =  10)
+    ylabs      <- seq(90, 10, by = -10) 
+    
+    n_max <- round(abs(alptempr::max_na(qvslo_long)) / (alptempr::max_na(qvslo_long) + abs(alptempr::min_na(qvslo_long))), digits = 2) * 200
     n_min <- 200 - n_max
-    cols_min <- colorRampPalette(c("darkblue", "blue", "deepskyblue", "grey90"))(n_min)
-    cols_max <- colorRampPalette(c("grey90", "yellow", "orange", "red3"))(n_max)
-    cols_2 <- c(cols_min, cols_max)
+    cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
+    cols_max <- grDevices::colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+    cols_qvslo <- c(cols_min, cols_max)
     
-    n_max <- round(abs(max_na(qmove[, z])) / (max_na(qmove[, z]) + abs(min_na(qmove[, z]))), digits = 2) * 200
-    n_min <- 200 - n_max
-    cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
-    cols_max <- colorRampPalette(c("grey90", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-    cols_2 <- c(cols_min, cols_max)
+    breaks_qvslo <-  seq(alptempr::min_na(qvslo_long), alptempr::max_na(qvslo_long), length.out = length(cols_qvslo) +1)
     
-    image_flow(data_in <- qmove[, z],
-               colors <- cols_2,
-               breaks = seq(min_na(qmove[, z]), max_na(qmove[, z]), length.out = length(cols_2) +1),
-               main <- paste0(colnames(dis_sel)[i], ": Trend moving quantile exceedance prob. [%/dec]"),
-               ylab <- "Quantile",
-               margins_1 = c(1.6,2.5,1.6,0),
-               margins_2 = c(1.6,0.5,1.6,1.7)
-    )
+    y <- 1:ncol(qvslo_long)
+    x <- 1:365
+    
+    par(mar = c(1.6, 3, 0.6, 0))
+    
+    image(x, y, as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, ylab = "",
+          xlab = "", axes = F)
+    
+    axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
+    mtext("Quantile", 2, 1.5, cex = 0.8)
+    
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.03)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.3, 0))#plot labels
+    box()
+    
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+    
+    alptempr::image_scale(as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Trend Fenster-Quantil [m³/sec/dec]", side = 4, line = 1.5, cex = 0.8)
+    
+    box()
     
   }
   f_plot_clim <- function(){
     plot(1:10, 1:10, type = "n", axes = F, ylab = "", xlab = "")
-    mtext("Plot not available for current selection.", line = -1)
+    # mtext("Plot not available for current selection.", line = -1)
+    mtext("Abbildung für aktuelle Auswahl nicht verfügbar.", line = -1)
   }
   f_plot_clic <- function(){
     plot(1:10, 1:10, type = "n", axes = F, ylab = "", xlab = "")
-    mtext("Plot not available for current selection.", line = -1)
+    # mtext("Plot not available for current selection.", line = -1)
+    mtext("Abbildung für aktuelle Auswahl nicht verfügbar.", line = -1)
+  }
+  f_plot_smea <- function(){
+    plot(1:10, 1:10, type = "n", axes = F, ylab = "", xlab = "")
+    # mtext("Plot not available for current selection.", line = -1)
+    mtext("Abbildung für aktuelle Auswahl nicht verfügbar.", line = -1)
+  }
+  f_plot_sslo <- function(){
+    plot(1:10, 1:10, type = "n", axes = F, ylab = "", xlab = "")
+    #mtext("Plot not available for current selection.", line = -1)
+    mtext("Abbildung für aktuelle Auswahl nicht verfügbar.", line = -1)
+  }
+  
+  #Basel with snow and climate analysis
+  if(paste(gauge_sel$clicked_gauge$lat) == "47.55927"){
+    
+    output$basin_select_clim <- renderText({"Hochrhein bis Pegel Basel"})
+    output$basin_select_clic <- renderText({"Hochrhein bis Pegel Basel"})
+    
+    output$basin_select_clim <- renderText({"Select sub-basin"})
+    output$basin_select_clic <- renderText({"Select sub-basin"})
+    qvalu_long <- qvalu_long_base
+    qvslo_long <- qvslo_long_base
+    
+    my_no_col <- F
+    meta_grid_bands <- meta_grid_bands_base
+    my_elev_bands <- my_elev_bands_base
+    tmed_band <- tmed_band_base
+    tmed_band_med <- tmed_band_med_base
+    tslo_band <- tslo_band_base
+    tslo_band_med <- tslo_band_med_base
+    pmea_band <- pmea_band_base
+    pmea_band_med <- pmea_band_med_base
+    pslo_band <- pslo_band_base
+    pslo_band_med <- pslo_band_med_base
+    emed_band <- emed_band_base
+    emed_band_med <- emed_band_med_base
+    eslo_band <- eslo_band_base
+    eslo_band_med <- eslo_band_med_base
+    
+    smea_band <- smea_band_base
+    vmea_band <- vmea_band_base
+    vdif_band <- vdif_band_base
+    vdis_band <- vdis_band_base
+    
+    f_plot_clim <- function(){
+      
+      par(bg = "grey92")
+      par(oma=c(0,0,0,0))
+      par(family="serif")
+      
+      layout(matrix(c(1,3,5,
+                      2,4,6), 3, 2), widths=c(1, 1), heights=rep(1, 3))
+      
+      plot_cycl_elev(data_in = tmed_band, data_mk = tmed_band, data_in_me = tmed_band_med,
+                     data_meta = meta_grid_bands, main_text = paste0("Temperatur [°C]"),
+                     margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
+                     no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                     smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+      
+      plot_cycl_elev(data_in = pmea_band, data_mk = pmea_band, data_in_me = pmea_band_med,
+                     data_meta = meta_grid_bands, main_text= paste0("Niederschlag [mm]"),
+                     margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
+                     no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                     smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+      
+      plot_cycl_elev(data_in = emed_band, data_mk = emed_band, data_in_me = emed_band_med,
+                     data_meta = meta_grid_bands, main_text= paste0("Evapotranspiration [mm]"),
+                     margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
+                     no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                     smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+      
+    }
+    f_plot_clic <- function(){
+      
+      par(bg = "grey92")
+      par(oma=c(0,0,0,0))
+      par(family="serif")
+      
+      layout(matrix(c(1,3,5,
+                      2,4,6), 3, 2), widths=c(1, 1), heights=rep(1, 3))
+      
+      plot_cycl_elev(data_in = tslo_band, data_mk = tslo_band, data_in_me = tslo_band_med,
+                     data_meta = meta_grid_bands, main_text = paste0("Temperatur [°C/10a]"),
+                     margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
+                     no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                     smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+      
+      plot_cycl_elev(data_in = pslo_band, data_mk = pslo_band, data_in_me = pslo_band_med,
+                     data_meta = meta_grid_bands, main_text = paste0("Niederschlag [mm/10a]"),
+                     margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
+                     no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                     smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+      
+      plot_cycl_elev(data_in = eslo_band, data_mk = eslo_band, data_in_me = eslo_band_med,
+                     data_meta = meta_grid_bands, main_text = paste0("Evapotranspiration [mm/10a]"),
+                     margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
+                     no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
+                     smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+    }
+    f_plot_smea <- function(){
+      
+      par(bg = "grey92")
+      par(oma=c(0,0,0,0))
+      par(family="serif")
+      
+      layout(matrix(c(rep(c(1,3), 7),
+                      2,4),
+                    2, 8), widths=c(), heights=c(1,1))
+      
+      #Snow depth elevation band
+      par(mar = c(1.6, 3, 0.6, 0))
+      
+      x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+      x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+      
+      my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                   "yellow2","gold", "orange2", "orangered2"))(200)
+      
+      n_max <- round(abs(max_na(smea_band[, ])) / (max_na(smea_band[, ]) + abs(min_na(smea_band[, ]))), digits = 2) * 200
+      n_min <- 200 - n_max
+      
+      cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+      cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+      # my_col <- c(cols_min, cols_max)
+      
+      my_bre <- seq(min_na(smea_band), max_na(smea_band), length.out = length(my_col)+1)
+      
+      image(x = 1:365,
+            y = my_elev_bands[-length(my_elev_bands)],
+            z = smea_band, col =my_col, breaks = my_bre,
+            ylab = "", xlab = "", axes = F)
+      axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+           col = "black", col.axis = "black", tck = -0.06)#plot ticks
+      axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+           col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+      mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+      axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+      box()
+      
+      par(mar = c(1.6, 0.5, 0.6, 2.7))
+      
+      image_scale(as.matrix(smea_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+      axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+      mtext("Schnee-Wasser-Equ. [m]", side = 4, line = 1.5, cex = 0.8)
+      
+      box()
+      
+      #Snow volume elevation band
+      par(mar = c(1.6, 3, 0.6, 0))
+      
+      x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+      x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+      
+      my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                   "yellow2","gold", "orange2", "orangered2"))(200)
+      
+      n_max <- round(abs(max_na(vmea_band[, ])) / (max_na(vmea_band[, ]) + abs(min_na(vmea_band[, ]))), digits = 2) * 200
+      n_min <- 200 - n_max
+      
+      cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+      cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+      # my_col <- c(cols_min, cols_max)
+      
+      my_bre <- seq(min_na(vmea_band), max_na(vmea_band), length.out = length(my_col)+1)
+      
+      image(x = 1:365,
+            y = my_elev_bands[-length(my_elev_bands)],
+            z = vmea_band, col =my_col, breaks = my_bre,
+            ylab = "", xlab = "", axes = F)
+      axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+           col = "black", col.axis = "black", tck = -0.06)#plot ticks
+      axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+           col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+      mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+      axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+      box()
+      
+      par(mar = c(1.6, 0.5, 0.6, 2.7))
+      
+      image_scale(as.matrix(vmea_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+      axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+      mtext("Schnee volumen [m³]", side = 4, line = 1.5, cex = 0.8)
+      
+      box()
+      
+      
+    }
+    f_plot_sslo <- function(){
+      
+      par(bg = "grey92")
+      par(oma=c(0,0,0,0))
+      par(family="serif")
+      
+      layout(matrix(c(rep(c(1,3), 7),
+                      2,4),
+                    2, 8), widths=c(), heights=c(1,1))
+      
+      
+      #Snow difference mean
+      par(mar = c(1.6, 3, 0.6, 0))
+      
+      x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+      x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+      
+      my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                   "yellow2","gold", "orange2", "orangered2"))(200)
+      
+      n_max <- round(abs(max_na(vdif_band[, ])) / (max_na(vdif_band[, ]) + abs(min_na(vdif_band[, ]))), digits = 2) * 200
+      n_min <- 200 - n_max
+      
+      cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+      cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+      my_col <- c(cols_min, cols_max)
+      
+      my_bre <- seq(min_na(vdif_band), max_na(vdif_band), length.out = length(my_col)+1)
+      
+      image(x = 1:365,
+            y = my_elev_bands[-length(my_elev_bands)],
+            z = vdif_band, col =my_col, breaks = my_bre,
+            ylab = "", xlab = "", axes = F)
+      axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+           col = "black", col.axis = "black", tck = -0.06)#plot ticks
+      axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+           col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+      mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+      axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+      box()
+      
+      par(mar = c(1.6, 0.5, 0.6, 2.7))
+      
+      image_scale(as.matrix(vdif_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+      axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+      mtext("Diff. Schnee-Volumen [m³]", side = 4, line = 1.5, cex = 0.8)
+      
+      box()
+      
+      #Snow difference trend
+      par(mar = c(1.6, 3, 0.6, 0))
+      
+      x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+      x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+      
+      my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                   "yellow2","gold", "orange2", "orangered2"))(200)
+      
+      n_max <- round(abs(max_na(vdis_band[, ])) / (max_na(vdis_band[, ]) + abs(min_na(vdis_band[, ]))), digits = 2) * 200
+      n_min <- 200 - n_max
+      
+      cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+      cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+      my_col <- c(cols_min, cols_max)
+      
+      my_bre <- seq(min_na(vdis_band), max_na(vdis_band), length.out = length(my_col)+1)
+      
+      image(x = 1:365,
+            y = my_elev_bands[-length(my_elev_bands)],
+            z = vdis_band, col =my_col, breaks = my_bre,
+            ylab = "", xlab = "", axes = F)
+      axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+           col = "black", col.axis = "black", tck = -0.06)#plot ticks
+      axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+           col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+      mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+      axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+      box()
+      
+      par(mar = c(1.6, 0.5, 0.6, 2.7))
+      
+      image_scale(as.matrix(vdis_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+      axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+      mtext("Diff. Schnee-Volumen [m³/10a]", side = 4, line = 1.5, cex = 0.8)
+      
+      box()
+      
+    }
+    
   }
   
   output$plot_disc <-  renderPlot({f_plot_disc()})
   output$plot_clim <-  renderPlot({f_plot_clim()})
   output$plot_clic <-  renderPlot({f_plot_clic()})
+  output$plot_smea <-  renderPlot({f_plot_smea()})
+  output$plot_sslo <-  renderPlot({f_plot_sslo()})
   
 })
 
@@ -535,210 +1013,234 @@ observeEvent(input$map_shape_click,{
   
   if(paste(basin_sel$clicked_basin$id) == "alp_rhine"){
     
-    output$basin_select_clim <- renderText({"Alpine Rhine until gauge Diepoldsau"})
-    output$basin_select_clic <- renderText({"Alpine Rhine until gauge Diepoldsau"})
-    i = which(colnames(dis_sel) == "Diepoldsau")
+    output$basin_select_clim <- renderText({"Alpenrhein bis Pegel Diepoldsau"})
+    output$basin_select_clic <- renderText({"Alpenrhein bis Pegel Diepoldsau"})
+    qvalu_long <- qvalu_long_diep
+    qvslo_long <- qvslo_long_diep
     
-    meta_grid <- meta_grid_diep
     my_no_col <- F
-    tmed <- tmed_diep
-    tmed_med <- tmed_med_diep
-    pmea <- pmea_diep
-    pmea_med <- pmea_med_diep
-    emed <- emed_diep
-    emed_med <- emed_med_diep
-    smea <- smea_diep
-    smea_mea <- smea_mea_diep
-    tslo <- tslo_diep
-    tslo_med <- tslo_med_diep
-    pslo <- pslo_diep
-    pslo_med <- pslo_med_diep
-    eslo <- eslo_diep
-    eslo_med <- eslo_med_diep
-    sslo <- sslo_diep
-    sslo_mea <- sslo_mea_diep
+    meta_grid_bands <- meta_grid_bands_diep
+    my_elev_bands <- my_elev_bands_diep
+    tmed_band <- tmed_band_diep
+    tmed_band_med <- tmed_band_med_diep
+    tslo_band <- tslo_band_diep
+    tslo_band_med <- tslo_band_med_diep
+    pmea_band <- pmea_band_diep
+    pmea_band_med <- pmea_band_med_diep
+    pslo_band <- pslo_band_diep
+    pslo_band_med <- pslo_band_med_diep
+    emed_band <- emed_band_diep
+    emed_band_med <- emed_band_med_diep
+    eslo_band <- eslo_band_diep
+    eslo_band_med <- eslo_band_med_diep
+    
+    smea_band <- smea_band_diep
+    vmea_band <- vmea_band_diep
+    vdif_band <- vdif_band_diep
+    vdis_band <- vdis_band_diep
     
   }
   if(paste(basin_sel$clicked_basin$id) == "reuss"){
     
-    output$basin_select_clim <- renderText({"Reuss river catchment until gauge Mellingen"})
-    output$basin_select_clic <- renderText({"Reuss river catchment until gauge Mellingen"})
-    i = which(colnames(dis_sel) == "Mellingen")
+    output$basin_select_clim <- renderText({"Reuss bis Pegel Mellingen"})
+    output$basin_select_clic <- renderText({"Reuss bis Pegel Mellingen"})
+    qvalu_long <- qvalu_long_mell
+    qvslo_long <- qvslo_long_mell
     
-    meta_grid <- meta_grid_reus
     my_no_col <- F
-    tmed <- tmed_reus
-    tmed_med <- tmed_med_reus
-    pmea <- pmea_reus
-    pmea_med <- pmea_med_reus
-    emed <- emed_reus
-    emed_med <- emed_med_reus
-    smea <- smea_reus
-    smea_mea <- smea_mea_reus
-    tslo <- tslo_reus
-    tslo_med <- tslo_med_reus
-    pslo <- pslo_reus
-    pslo_med <- pslo_med_reus
-    eslo <- eslo_reus
-    eslo_med <- eslo_med_reus
-    sslo <- sslo_reus
-    sslo_mea <- sslo_mea_reus
+    meta_grid_bands <- meta_grid_bands_mell
+    my_elev_bands <- my_elev_bands_mell
+    tmed_band <- tmed_band_mell
+    tmed_band_med <- tmed_band_med_mell
+    tslo_band <- tslo_band_mell
+    tslo_band_med <- tslo_band_med_mell
+    pmea_band <- pmea_band_mell
+    pmea_band_med <- pmea_band_med_mell
+    pslo_band <- pslo_band_mell
+    pslo_band_med <- pslo_band_med_mell
+    emed_band <- emed_band_mell
+    emed_band_med <- emed_band_med_mell
+    eslo_band <- eslo_band_mell
+    eslo_band_med <- eslo_band_med_mell
+    
+    smea_band <- smea_band_mell
+    vmea_band <- vmea_band_mell
+    vdif_band <- vdif_band_mell
+    vdis_band <- vdis_band_mell
     
   }
   if(paste(basin_sel$clicked_basin$id) == "aare"){
     
-    output$basin_select_clim <- renderText({"Aare river catchment until gauge Brugg"})
-    output$basin_select_clic <- renderText({"Aare river catchment until gauge Brugg"})
-    i = which(colnames(dis_sel) == "Brugg")
+    output$basin_select_clim <- renderText({"Aare bis Pegel Brugg"})
+    output$basin_select_clic <- renderText({"Aare bis Pegel Brugg"})
+    qvalu_long <- qvalu_long_brug
+    qvslo_long <- qvslo_long_brug
     
-    meta_grid <- meta_grid_aare
     my_no_col <- F
-    tmed <- tmed_aare
-    tmed_med <- tmed_med_aare
-    pmea <- pmea_aare
-    pmea_med <- pmea_med_aare
-    emed <- emed_aare
-    emed_med <- emed_med_aare
-    smea <- smea_aare
-    smea_mea <- smea_mea_aare
-    tslo <- tslo_aare
-    tslo_med <- tslo_med_aare
-    pslo <- pslo_aare
-    pslo_med <- pslo_med_aare
-    eslo <- eslo_aare
-    eslo_med <- eslo_med_aare
-    sslo <- sslo_aare
-    sslo_mea <- sslo_mea_aare
+    meta_grid_bands <- meta_grid_bands_brug
+    my_elev_bands <- my_elev_bands_brug
+    tmed_band <- tmed_band_brug
+    tmed_band_med <- tmed_band_med_brug
+    tslo_band <- tslo_band_brug
+    tslo_band_med <- tslo_band_med_brug
+    pmea_band <- pmea_band_brug
+    pmea_band_med <- pmea_band_med_brug
+    pslo_band <- pslo_band_brug
+    pslo_band_med <- pslo_band_med_brug
+    emed_band <- emed_band_brug
+    emed_band_med <- emed_band_med_brug
+    eslo_band <- eslo_band_brug
+    eslo_band_med <- eslo_band_med_brug
+    
+    smea_band <- smea_band_brug
+    vmea_band <- vmea_band_brug
+    vdif_band <- vdif_band_brug
+    vdis_band <- vdis_band_brug
     
   }
   if(paste(basin_sel$clicked_basin$id) == "moselle"){
     
-    output$basin_select_clim <- renderText({"Moselle river catchment until gauge Cochem"})
-    output$basin_select_clic <- renderText({"Moselle river catchment until gauge Cochem"})
-    i = which(colnames(dis_sel) == "Cochem")
+    output$basin_select_clim <- renderText({"Mosel bis Pegel Cochem"})
+    output$basin_select_clic <- renderText({"Mosel bis Pegel Cochem"})
+    qvalu_long <- qvalu_long_coch
+    qvslo_long <- qvslo_long_coch
     
-    meta_grid <- meta_grid_mose
     my_no_col <- T
-    tmed <- tmed_mose
-    tmed_med <- tmed_med_mose
-    pmea <- pmea_mose
-    pmea_med <- pmea_med_mose
-    emed <- emed_mose
-    emed_med <- emed_med_mose
-    smea <- smea_mose
-    smea_mea <- smea_mea_mose
-    tslo <- tslo_mose
-    tslo_med <- tslo_med_mose
-    pslo <- pslo_mose
-    pslo_med <- pslo_med_mose
-    eslo <- eslo_mose
-    eslo_med <- eslo_med_mose
-    sslo <- sslo_mose
-    sslo_mea <- sslo_mea_mose
+    meta_grid_bands <- meta_grid_bands_mose
+    my_elev_bands <- my_elev_bands_mose
+    tmed_band <- tmed_band_mose
+    tmed_band_med <- tmed_band_med_mose
+    tslo_band <- tslo_band_mose
+    tslo_band_med <- tslo_band_med_mose
+    pmea_band <- pmea_band_mose
+    pmea_band_med <- pmea_band_med_mose
+    pslo_band <- pslo_band_mose
+    pslo_band_med <- pslo_band_med_mose
+    emed_band <- emed_band_mose
+    emed_band_med <- emed_band_med_mose
+    eslo_band <- eslo_band_mose
+    eslo_band_med <- eslo_band_med_mose
+    
+    smea_band <- smea_band_mose
+    vmea_band <- vmea_band_mose
+    vdif_band <- vdif_band_mose
+    vdis_band <- vdis_band_mose
     
   }
   if(paste(basin_sel$clicked_basin$id) == "nahe"){
     
-    output$basin_select_clim <- renderText({"Nahe river catchment until gauge Grolsheim"})
-    output$basin_select_clic <- renderText({"Nahe river catchment until gauge Grolsheim"})
-    i = which(colnames(dis_sel) == "Grolsheim")
+    output$basin_select_clim <- renderText({"Nahe bis Pegel Grolsheim"})
+    output$basin_select_clic <- renderText({"Nahe bis Pegel Grolsheim"})
+    qvalu_long <- qvalu_long_grol
+    qvslo_long <- qvslo_long_grol
     
-    meta_grid <- meta_grid_nahe
     my_no_col <- T
-    tmed <- tmed_nahe
-    tmed_med <- tmed_med_nahe
-    pmea <- pmea_nahe
-    pmea_med <- pmea_med_nahe
-    emed <- emed_nahe
-    emed_med <- emed_med_nahe
-    smea <- smea_nahe
-    smea_mea <- smea_mea_nahe
-    tslo <- tslo_nahe
-    tslo_med <- tslo_med_nahe
-    pslo <- pslo_nahe
-    pslo_med <- pslo_med_nahe
-    eslo <- eslo_nahe
-    eslo_med <- eslo_med_nahe
-    sslo <- sslo_nahe
-    sslo_mea <- sslo_mea_nahe
+    meta_grid_bands <- meta_grid_bands_nahe
+    my_elev_bands <- my_elev_bands_nahe
+    tmed_band <- tmed_band_nahe
+    tmed_band_med <- tmed_band_med_nahe
+    tslo_band <- tslo_band_nahe
+    tslo_band_med <- tslo_band_med_nahe
+    pmea_band <- pmea_band_nahe
+    pmea_band_med <- pmea_band_med_nahe
+    pslo_band <- pslo_band_nahe
+    pslo_band_med <- pslo_band_med_nahe
+    emed_band <- emed_band_nahe
+    emed_band_med <- emed_band_med_nahe
+    eslo_band <- eslo_band_nahe
+    eslo_band_med <- eslo_band_med_nahe
+    
+    smea_band <- smea_band_nahe
+    vmea_band <- vmea_band_nahe
+    vdif_band <- vdif_band_nahe
+    vdis_band <- vdis_band_nahe
     
   }
   if(paste(basin_sel$clicked_basin$id) == "lahn"){
     
-    output$basin_select_clim <- renderText({"Lahn river catchment until gauge Kalkofen"})
-    output$basin_select_clic <- renderText({"Lahn river catchment until gauge Kalkofen"})
-    i = which(colnames(dis_sel) == "Kalkofen")
+    output$basin_select_clim <- renderText({"Lahn bis Pegel Kalkofen"})
+    output$basin_select_clic <- renderText({"Lahn bis Pegel Kalkofen"})
+    qvalu_long <- qvalu_long_kalk
+    qvslo_long <- qvslo_long_kalk
     
-    meta_grid <- meta_grid_lahn
     my_no_col <- T
-    tmed <- tmed_lahn
-    tmed_med <- tmed_med_lahn
-    pmea <- pmea_lahn
-    pmea_med <- pmea_med_lahn
-    emed <- emed_lahn
-    emed_med <- emed_med_lahn
-    smea <- smea_lahn
-    smea_mea <- smea_mea_lahn
-    tslo <- tslo_lahn
-    tslo_med <- tslo_med_lahn
-    pslo <- pslo_lahn
-    pslo_med <- pslo_med_lahn
-    eslo <- eslo_lahn
-    eslo_med <- eslo_med_lahn
-    sslo <- sslo_lahn
-    sslo_mea <- sslo_mea_lahn
+    meta_grid_bands <- meta_grid_bands_lahn
+    my_elev_bands <- my_elev_bands_lahn
+    tmed_band <- tmed_band_lahn
+    tmed_band_med <- tmed_band_med_lahn
+    tslo_band <- tslo_band_lahn
+    tslo_band_med <- tslo_band_med_lahn
+    pmea_band <- pmea_band_lahn
+    pmea_band_med <- pmea_band_med_lahn
+    pslo_band <- pslo_band_lahn
+    pslo_band_med <- pslo_band_med_lahn
+    emed_band <- emed_band_lahn
+    emed_band_med <- emed_band_med_lahn
+    eslo_band <- eslo_band_lahn
+    eslo_band_med <- eslo_band_med_lahn
+    
+    smea_band <- smea_band_lahn
+    vmea_band <- vmea_band_lahn
+    vdif_band <- vdif_band_lahn
+    vdis_band <- vdis_band_lahn
     
   }
   if(paste(basin_sel$clicked_basin$id) == "main"){
     
-    output$basin_select_clim <- renderText({"Main river catchment until gauge Frankfurt"})
-    output$basin_select_clic <- renderText({"Main river catchment until gauge Frankfurt"})
-    i = which(colnames(dis_sel) == "Frankfurt")
+    output$basin_select_clim <- renderText({"Main bis Pegel Frankfurt"})
+    output$basin_select_clic <- renderText({"Main bis Pegel Frankfurt"})
+    qvalu_long <- qvalu_long_fran
+    qvslo_long <- qvslo_long_fran
     
-    meta_grid <- meta_grid_main
     my_no_col <- T
-    tmed <- tmed_main
-    tmed_med <- tmed_med_main
-    pmea <- pmea_main
-    pmea_med <- pmea_med_main
-    emed <- emed_main
-    emed_med <- emed_med_main
-    smea <- smea_main
-    smea_mea <- smea_mea_main
-    tslo <- tslo_main
-    tslo_med <- tslo_med_main
-    pslo <- pslo_main
-    pslo_med <- pslo_med_main
-    eslo <- eslo_main
-    eslo_med <- eslo_med_main
-    sslo <- sslo_main
-    sslo_mea <- sslo_mea_main
+    meta_grid_bands <- meta_grid_bands_main
+    my_elev_bands <- my_elev_bands_main
+    tmed_band <- tmed_band_main
+    tmed_band_med <- tmed_band_med_main
+    tslo_band <- tslo_band_main
+    tslo_band_med <- tslo_band_med_main
+    pmea_band <- pmea_band_main
+    pmea_band_med <- pmea_band_med_main
+    pslo_band <- pslo_band_main
+    pslo_band_med <- pslo_band_med_main
+    emed_band <- emed_band_main
+    emed_band_med <- emed_band_med_main
+    eslo_band <- eslo_band_main
+    eslo_band_med <- eslo_band_med_main
+    
+    smea_band <- smea_band_main
+    vmea_band <- vmea_band_main
+    vdif_band <- vdif_band_main
+    vdis_band <- vdis_band_main
     
   }
   if(paste(basin_sel$clicked_basin$id) == "neckar"){
     
-    output$basin_select_clim <- renderText({"Neckar river catchment until gauge Rockenau"})
-    output$basin_select_clic <- renderText({"Neckar river catchment until gauge Rockenau"})
-    i = which(colnames(dis_sel) == "Rockenau")
+    output$basin_select_clim <- renderText({"Neckar bis Pegel Rockenau"})
+    output$basin_select_clic <- renderText({"Neckar bis Pegel Rockenau"})
+    qvalu_long <- qvalu_long_rock
+    qvslo_long <- qvslo_long_rock
     
-    meta_grid <- meta_grid_neck
     my_no_col <- T
-    tmed <- tmed_neck
-    tmed_med <- tmed_med_neck
-    pmea <- pmea_neck
-    pmea_med <- pmea_med_neck
-    emed <- emed_neck
-    emed_med <- emed_med_neck
-    smea <- smea_neck
-    smea_mea <- smea_mea_neck
-    tslo <- tslo_neck
-    tslo_med <- tslo_med_neck
-    pslo <- pslo_neck
-    pslo_med <- pslo_med_neck
-    eslo <- eslo_neck
-    eslo_med <- eslo_med_neck
-    sslo <- sslo_neck
-    sslo_mea <- sslo_mea_neck
+    meta_grid_bands <- meta_grid_bands_neck
+    my_elev_bands <- my_elev_bands_neck
+    tmed_band <- tmed_band_neck
+    tmed_band_med <- tmed_band_med_neck
+    tslo_band <- tslo_band_neck
+    tslo_band_med <- tslo_band_med_neck
+    pmea_band <- pmea_band_neck
+    pmea_band_med <- pmea_band_med_neck
+    pslo_band <- pslo_band_neck
+    pslo_band_med <- pslo_band_med_neck
+    emed_band <- emed_band_neck
+    emed_band_med <- emed_band_med_neck
+    eslo_band <- eslo_band_neck
+    eslo_band_med <- eslo_band_med_neck
+    
+    smea_band <- smea_band_neck
+    vmea_band <- vmea_band_neck
+    vdif_band <- vdif_band_neck
+    vdis_band <- vdis_band_neck
     
   }
   
@@ -748,45 +1250,93 @@ observeEvent(input$map_shape_click,{
     par(oma=c(0,0,0,0))
     par(family="serif")
     
-    z <- 1:99 + (i-1)*99
-    
     layout(matrix(c(rep(c(1,3), 7),
                     2,4),
                   2, 8), widths=c(), heights=c(1,1))
     
-    # cols_1 <- colorRampPalette(c("darkblue", "blue", "deepskyblue", "grey90", "yellow2","orange", "red3"))(200)
-    cols_1 <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90", 
-                                 "yellow2","gold2", "orange2", "orangered3", "orangered4"))(200)
+    x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+    ytiks      <- seq(10, 90, by =  10)
+    ylabs      <- seq(90, 10, by = -10) 
     
-    image_flow(data_in   = qprob[, z],
-               colors    = cols_1,
-               breaks    = seq(0, 100, length.out=201),
-               main      = paste0(colnames(dis_sel)[i], ": Quantile exceedance probab. [%]"),
-               ylab      = "Quantile",
-               margins_1 = c(1.6,2.5,1.6,0),
-               margins_2 = c(1.6,0.5,1.6,1.7)
-    )
+    cols_qvalu <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white", 
+                                                "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
     
-    n_max <- round(abs(max_na(qmove[, z])) / (max_na(qmove[, z]) + abs(min_na(qmove[, z]))), digits = 2) * 200
+    max_break <- max_na(qvalu_long)
+    min_break <- min_na(qvalu_long)
+    qua_break <- quantile(qvalu_long, probs = 0.7, type = 8, na.rm = T)
+    
+    breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
+    breaks_2 <- lseq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
+    breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + 0.1
+    
+    breaks_qvalu <- c(breaks_1, breaks_2)
+    
+    y <- 1:ncol(qvalu_long)
+    x <- 1:365
+    
+    par(mar = c(1.6, 3, 0.6, 0))
+    
+    image(x, y, as.matrix(qvalu_long), col = cols_qvalu, breaks = breaks_qvalu, ylab = "",
+          xlab = "", axes = F)
+    
+    axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
+    mtext("Quantil", 2, 1.5, cex = 0.8)
+    
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.03)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.3, 0))#plot labels
+    box()
+    
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+    
+    alptempr::image_scale(as.matrix(qvalu_long), col = cols_qvalu, breaks = breaks_qvalu, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Abfluss [m³/sec]", side = 4, line = 1.5, cex = 0.8)
+    
+    box()
+    
+    
+    #Plot: Trend moving quantile
+    
+    x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+    ytiks      <- seq(10, 90, by =  10)
+    ylabs      <- seq(90, 10, by = -10) 
+    
+    n_max <- round(abs(alptempr::max_na(qvslo_long)) / (alptempr::max_na(qvslo_long) + abs(alptempr::min_na(qvslo_long))), digits = 2) * 200
     n_min <- 200 - n_max
-    cols_min <- colorRampPalette(c("darkblue", "blue", "deepskyblue", "grey90"))(n_min)
-    cols_max <- colorRampPalette(c("grey90", "yellow", "orange", "red3"))(n_max)
-    cols_2 <- c(cols_min, cols_max)
+    cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
+    cols_max <- grDevices::colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+    cols_qvslo <- c(cols_min, cols_max)
     
-    n_max <- round(abs(max_na(qmove[, z])) / (max_na(qmove[, z]) + abs(min_na(qmove[, z]))), digits = 2) * 200
-    n_min <- 200 - n_max
-    cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
-    cols_max <- colorRampPalette(c("grey90", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-    cols_2 <- c(cols_min, cols_max)
+    breaks_qvslo <-  seq(alptempr::min_na(qvslo_long), alptempr::max_na(qvslo_long), length.out = length(cols_qvslo) +1)
     
-    image_flow(data_in <- qmove[, z],
-               colors <- cols_2,
-               breaks = seq(min_na(qmove[, z]), max_na(qmove[, z]), length.out = length(cols_2) +1),
-               main <- paste0(colnames(dis_sel)[i], ": Trend moving quantile exceedance prob. [%/dec]"),
-               ylab <- "Quantile",
-               margins_1 = c(1.6,2.5,1.6,0),
-               margins_2 = c(1.6,0.5,1.6,1.7)
-    )
+    y <- 1:ncol(qvslo_long)
+    x <- 1:365
+    
+    par(mar = c(1.6, 3, 0.6, 0))
+    
+    image(x, y, as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, ylab = "",
+          xlab = "", axes = F)
+    
+    axis(2, at = ytiks, labels = ylabs/100, mgp = c(3, 0.3, 0))
+    mtext("Quantil", 2, 1.5, cex = 0.8)
+    
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.03)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.3, 0))#plot labels
+    box()
+    
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+    
+    alptempr::image_scale(as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Trend Fenster-Quantil [m³/sec/10a]", side = 4, line = 1.5, cex = 0.8)
+    
+    box()
     
   }
   f_plot_clim <- function(){
@@ -795,32 +1345,27 @@ observeEvent(input$map_shape_click,{
     par(oma=c(0,0,0,0))
     par(family="serif")
     
-    layout(matrix(c(1,3,5,7,
-                    2,4,6,8), 4, 2), widths=c(1, 1), heights=rep(1, 4))
+    layout(matrix(c(1,3,5,
+                    2,4,6), 3, 2), widths=c(1, 1), heights=rep(1, 3))
     
-    plot_cycl_elev(data_in = tmed, data_mk = tmed, data_in_me = tmed_med,
-                   data_meta = meta_grid, main_text = paste0("Temperature [°C]"),
+    plot_cycl_elev(data_in = tmed_band, data_mk = tmed_band, data_in_me = tmed_band_med,
+                   data_meta = meta_grid_bands, main_text = paste0("Temperatur [°C]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
     
-    plot_cycl_elev(data_in = pmea, data_mk = pmea, data_in_me = pmea_med,
-                   data_meta = meta_grid, main_text = paste0("Precipitation [mm]"),
+    plot_cycl_elev(data_in = pmea_band, data_mk = pmea_band, data_in_me = pmea_band_med,
+                   data_meta = meta_grid_bands, main_text= paste0("Niederschlag [mm]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
     
-    plot_cycl_elev(data_in = emed, data_mk = emed, data_in_me = emed_med,
-                   data_meta = meta_grid, main_text = paste0("Evapotranspiration [mm]"),
+    plot_cycl_elev(data_in = emed_band, data_mk = emed_band, data_in_me = emed_band_med,
+                   data_meta = meta_grid_bands, main_text= paste0("Evapotranspiration [mm]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
     
-    plot_cycl_elev(data_in = smea, data_mk = smea, data_in_me = smea_mea,
-                   data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm]"),
-                   margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                   no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
   }
   f_plot_clic <- function(){
     
@@ -828,37 +1373,209 @@ observeEvent(input$map_shape_click,{
     par(oma=c(0,0,0,0))
     par(family="serif")
     
-    layout(matrix(c(1,3,5,7,
-                    2,4,6,8), 4, 2), widths=c(1, 1), heights=rep(1, 4))
+    layout(matrix(c(1,3,5,
+                    2,4,6), 3, 2), widths=c(1, 1), heights=rep(1, 3))
     
-    plot_cycl_elev(data_in = tslo, data_mk = tslo, data_in_me = tslo_med,
-                   data_meta = meta_grid, main_text = paste0("Temperature [°C/dec]"),
+    plot_cycl_elev(data_in = tslo_band, data_mk = tslo_band, data_in_me = tslo_band_med,
+                   data_meta = meta_grid_bands, main_text = paste0("Temperatur [°C/10a]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
     
-    plot_cycl_elev(data_in = pslo, data_mk = pslo, data_in_me = pslo_med,
-                   data_meta = meta_grid, main_text = paste0("Precipitation [mm/dec]"),
+    plot_cycl_elev(data_in = pslo_band, data_mk = pslo_band, data_in_me = pslo_band_med,
+                   data_meta = meta_grid_bands, main_text = paste0("Niederschlag [mm/10a]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
     
-    plot_cycl_elev(data_in = eslo, data_mk = eslo, data_in_me = eslo_med,
-                   data_meta = meta_grid, main_text = paste0("Evapotranspiration [mm/dec]"),
+    plot_cycl_elev(data_in = eslo_band, data_mk = eslo_band, data_in_me = eslo_band_med,
+                   data_meta = meta_grid_bands, main_text = paste0("Evapotranspiration [mm/10a]"),
                    margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
                    no_col = my_no_col, show_mk = F, aggr_cat_mean = F, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = F)
+  }
+  f_plot_smea <- function(){
     
-    plot_cycl_elev(data_in = sslo, data_mk = sslo, data_in_me = sslo_mea,
-                   data_meta = meta_grid, main_text = paste0("Snow water equiv. mod. [mm/dec]"),
-                   margins_1 = c(1.4,1.8,1.8,0.2), margins_2 = c(1.4,0.2,1.8,3.5),
-                   no_col = my_no_col, show_mk = F, aggr_cat_mean = T, with_hom_dat = F,
-                   smooth_val = 0.2, mk_sig_level = 0.05, add_st_num = T)
+    par(bg = "grey92")
+    par(oma=c(0,0,0,0))
+    par(family="serif")
+    
+    layout(matrix(c(rep(c(1,3), 7),
+                    2,4),
+                  2, 8), widths=c(), heights=c(1,1))
+    
+    #Snow depth elevation band
+    par(mar = c(1.6, 3, 0.6, 0))
+    
+    x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+
+    my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                 "yellow2","gold", "orange2", "orangered2"))(200)
+
+    n_max <- round(abs(max_na(smea_band[, ])) / (max_na(smea_band[, ]) + abs(min_na(smea_band[, ]))), digits = 2) * 200
+    n_min <- 200 - n_max
+
+    cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+    cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+    # my_col <- c(cols_min, cols_max)
+
+    my_bre <- seq(min_na(smea_band), max_na(smea_band), length.out = length(my_col)+1)
+
+    image(x = 1:365,
+          y = my_elev_bands[-length(my_elev_bands)],
+          z = smea_band, col =my_col, breaks = my_bre,
+          ylab = "", xlab = "", axes = F)
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.06)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+    mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+    axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+    box()
+
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+
+    image_scale(as.matrix(smea_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Schnee-Wasser-Equ. [m]", side = 4, line = 1.5, cex = 0.8)
+
+    box()
+
+    #Snow volume elevation band
+    par(mar = c(1.6, 3, 0.6, 0))
+
+    x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+
+    my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                 "yellow2","gold", "orange2", "orangered2"))(200)
+
+    n_max <- round(abs(max_na(vmea_band[, ])) / (max_na(vmea_band[, ]) + abs(min_na(vmea_band[, ]))), digits = 2) * 200
+    n_min <- 200 - n_max
+
+    cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+    cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+    # my_col <- c(cols_min, cols_max)
+
+    my_bre <- seq(min_na(vmea_band), max_na(vmea_band), length.out = length(my_col)+1)
+
+    image(x = 1:365,
+          y = my_elev_bands[-length(my_elev_bands)],
+          z = vmea_band, col =my_col, breaks = my_bre,
+          ylab = "", xlab = "", axes = F)
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.06)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+    mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+    axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+    box()
+
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+
+    image_scale(as.matrix(vmea_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Schnee volumen [m³]", side = 4, line = 1.5, cex = 0.8)
+
+    box()
+    
+    
+  }
+  f_plot_sslo <- function(){
+    
+    par(bg = "grey92")
+    par(oma=c(0,0,0,0))
+    par(family="serif")
+    
+    layout(matrix(c(rep(c(1,3), 7),
+                    2,4),
+                  2, 8), widths=c(), heights=c(1,1))
+    
+
+    #Snow difference mean
+    par(mar = c(1.6, 3, 0.6, 0))
+
+    x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+
+    my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                 "yellow2","gold", "orange2", "orangered2"))(200)
+
+    n_max <- round(abs(max_na(vdif_band[, ])) / (max_na(vdif_band[, ]) + abs(min_na(vdif_band[, ]))), digits = 2) * 200
+    n_min <- 200 - n_max
+
+    cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+    cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+    my_col <- c(cols_min, cols_max)
+
+    my_bre <- seq(min_na(vdif_band), max_na(vdif_band), length.out = length(my_col)+1)
+
+    image(x = 1:365,
+          y = my_elev_bands[-length(my_elev_bands)],
+          z = vdif_band, col =my_col, breaks = my_bre,
+          ylab = "", xlab = "", axes = F)
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.06)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+    mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+    axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+    box()
+
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+
+    image_scale(as.matrix(vdif_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Diff. Schnee-Volumen [m³]", side = 4, line = 1.5, cex = 0.8)
+
+    box()
+    
+    #Snow difference trend
+    par(mar = c(1.6, 3, 0.6, 0))
+
+    x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
+    x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+
+    my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
+                                 "yellow2","gold", "orange2", "orangered2"))(200)
+
+    n_max <- round(abs(max_na(vdis_band[, ])) / (max_na(vdis_band[, ]) + abs(min_na(vdis_band[, ]))), digits = 2) * 200
+    n_min <- 200 - n_max
+
+    cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+    cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+    my_col <- c(cols_min, cols_max)
+
+    my_bre <- seq(min_na(vdis_band), max_na(vdis_band), length.out = length(my_col)+1)
+
+    image(x = 1:365,
+          y = my_elev_bands[-length(my_elev_bands)],
+          z = vdis_band, col =my_col, breaks = my_bre,
+          ylab = "", xlab = "", axes = F)
+    axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+         col = "black", col.axis = "black", tck = -0.06)#plot ticks
+    axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
+         col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
+    mtext("Höhe ü.d.M. [m]", side = 2, line = 1.5, cex = 0.8)
+    axis(2, mgp=c(3, 0.15, 0), tck = -0.001)
+    box()
+
+    par(mar = c(1.6, 0.5, 0.6, 2.7))
+
+    image_scale(as.matrix(vdis_band), col = my_col, breaks = my_bre, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+    axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
+    mtext("Diff. Schnee-Volumen [m³/10a]", side = 4, line = 1.5, cex = 0.8)
+
+    box()
+    
   }
   
   output$plot_disc <-  renderPlot({f_plot_disc()})
   output$plot_clim <-  renderPlot({f_plot_clim()})
   output$plot_clic <-  renderPlot({f_plot_clic()})
+  output$plot_smea <-  renderPlot({f_plot_smea()})
+  output$plot_sslo <-  renderPlot({f_plot_sslo()})
   
 })
 
