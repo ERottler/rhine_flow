@@ -7,24 +7,27 @@
 
 #parameter----
 
-vari_annu <- "grdc" # disc, rain, tem0, grdc
-stat_annu <- "Basel_Rheinhalle_2" # Basel_Rheinhalle_2 (1869), BAS (1864), BER (1864), Cochem (1901), Koeln (1824), Diepoldsau_2,
-                         # Freudenstadt_Kniebis, Karlsruhe (1876), Hohenpeissenberg, Frankfurt_AM, SMA
-sta_yea_ann <- 1932
-end_yea_ann <- 2014
+vari_annu <- "rain" # disc, rain, tem0, grdc
+stat_annu <- "SMA" # Basel_Rheinhalle_2 (1869), BAS (1864), BER (1864), Cochem (1901), Koeln (1824), Diepoldsau_2,
+                                # Freudenstadt_Kniebis, Karlsruhe (1876), Hohenpeissenberg, Frankfurt_AM, SMA
+sta_yea_ann <- 1869
+end_yea_ann <- 2012
 my_break_day <- 0  # 1-Oct: 274 (Switzerland), 1-Nov: 305 (Germany)
 quants <- seq(0.01, 0.99, by = 0.01)
 quant_method <- "gpd" #empirical, gev, gpd
 rain_thres <- 2 #threshold rainy day (below or equal set to NA)
-my_cover_threshold <- 0.999
+my_cover_threshold <- 0.9999
 do_emd <- T
 my_enseble_size <- 2000
 my_noise_strength <- 0.5
 do_fft <- F
-smooth_par <- 6
+smooth_par <- 10
 do_loess <- F
-loess_par <- 1
-do_na_fil_emd <-  F
+my_span <- 0.90
+my_poly_degree <- 1
+do_na_fil_emd <-  T
+do_seasons <- T
+seas_sel <- "winter" #spring, summer, autumn, winter
 
 #annual_cal----
 
@@ -149,10 +152,19 @@ if(vari_annu == "tem0"){
   
   if(stat_annu == "SMA"){# Zürich /Fluntern
     
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order64389/order_64389_data.txt"), sep = ";", skip = 2, header = T)
     temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
     dat_annu <- data.frame(date    = temp_emd$date,
                            values  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "Hohenpeissenberg"){
+    
+    temp_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-06_11_13/TMK_MN004.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    temp_emd$date <- as.Date(strptime(temp_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    dat_annu <- data.frame(date   = temp_emd$date,
+                           values = temp_emd$WERT)
     
   }
   
@@ -165,6 +177,28 @@ if(vari_annu == "grdc"){
   
 }
 
+#Seasonal analysis
+
+if(do_seasons){
+  
+  if(seas_sel == "winter"){
+    dat_annu$values[which(!format(dat_annu$date, '%m') %in% c("12","01","02"))] <- NA
+  }
+  
+  if(seas_sel == "spring"){
+    dat_annu$values[which(!format(dat_annu$date, '%m') %in% c("03","04","05"))] <- NA
+  }
+  if(seas_sel == "summer"){
+    dat_annu$values[which(!format(dat_annu$date, '%m') %in% c("06","07","08"))] <- NA
+  }
+  if(seas_sel == "autumn"){
+    dat_annu$values[which(!format(dat_annu$date, '%m') %in%c("09","10","11"))] <- NA
+  }
+  
+  
+}
+
+         
 #Calculate all quantiles for each year
 f_annu_quant <- function(my_quant){
   
@@ -185,6 +219,9 @@ f_annu_quant <- function(my_quant){
 qannu <- foreach(k = quants, .combine = 'cbind') %dopar%{
   f_annu_quant(k)
 }
+
+
+
 
 #fill NA with mean of day
 if(do_na_fil_emd){
@@ -243,7 +280,7 @@ if(do_loess){
   #function to smooth data with FFT
   myLoess <- function(data_in){
     
-    loess_NA_restore(data_in, smoo_val = loess_par)
+    loess_na(data_in, sm_span = my_span, poly_degree = my_poly_degree )
     
   }
   
@@ -255,8 +292,16 @@ if(do_loess){
   
 }
 
-#Scale data
-qannu_resid <- scale(qannu_resid, center = T, scale = F)
+#Center data
+# qannu_resid <- scale(qannu_resid, center = T, scale = F)
+
+qannu_resid_meas <- apply(qannu_resid, 2, mea_na)
+
+for (i in 1:ncol(qannu_resid)) {
+  
+  qannu_resid[, i] <- qannu_resid[, i] - qannu_resid_meas[i]
+  
+}
 
 
 #annual_vis----

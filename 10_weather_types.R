@@ -12,47 +12,10 @@ start_day <- "1958-01-01"
 end_day   <- "2017-12-31"
 
 wtc_sel <- "gwt26_msl" #gwt26_msl, gwt26_500, cap27_msl
-cli_sel <- "Hohenpeissenberg" # BAS, BER, SMA, Hohenpeissenberg
+cli_sel <- "swiss_mix" # BAS, BER, SMA, Hohenpeissenberg, swiss_mix
 
 my_wtc_sel <- 1:26
 
-#cpa27----
-# my_wtc_sel <- c(21, 24, 19, 17, 14, 4, 15, 10, 22, 23, 27, 13,6, 11, 8, 18, 3, 16,
-#                 1, 5, 7, 9, 20, 25, 12, 26, 2)
-# my_wtc_sel[19]
-#21 West, cyclonic
-#24 West-SouthWest, cyclonic
-#19 SouthWest, cyclonic
-#17 South-SouthWest, cyclonic
-#14 South-SouthEast, cyclonic
-#4 West-SouthWest, cyclonic, flat pressure
-#15 West-NorthWest, cyclonic
-#10 NorthWest, cyclonic
-#22 NorthEast, cyclonic
-#23 East, cyclonic
-#27 Westerly Flow over Southern Europe, cyclonic
-#13 Westerly Flow over Northern Europe
-#6 Trough over Central Europe
-
-#11 West-NorthWest, anticyclonic
-#8 South-SouthEast, anticyclonic
-#18 East-SouthEast, anticyclonic
-#3 NorthWest, anticyclonic, flat pressure
-#16 East, anticyclonic / indifferent
-
-#1 West, indifferent, flat pressure
-#5 NorthWest, indifferent
-#7 East-SouthEast, indifferent
-#9 East, indifferent
-#20 West, indifferent
-
-#25 Low pressure over the Alps
-#12 High pressure over the Alps
-#26 High pressure over Central Europe
-#2 High pressure over Eastern Europe
-
-  
-  
 #sel_varies----
 
 if(wtc_sel == "gwt26_msl"){
@@ -125,98 +88,33 @@ if(cli_sel == "Hohenpeissenberg"){
   
 }
 
+if(cli_sel == "swiss_mix"){
+  
+  # Basel / Binningen
+  data_cli_bas <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), 
+                         sep = ";", skip = 2, header = T, na.strings = c("-"))
+  data_cli_bas$date <- as.POSIXct(strptime(data_cli$time, "%Y%m%d", tz="UTC"))
+  data_cli_bas$valu <- data_cli$rhs150d0
+  
+  # Bern
+  data_cli_ber <- read.table(paste0(base_dir, "data/idaweb/order64387/order_64387_data.txt"), 
+                         sep = ";", skip = 2, header = T, na.strings = c("-"))
+  data_cli_ber$date <- as.POSIXct(strptime(data_cli$time, "%Y%m%d", tz="UTC"))
+  data_cli_ber$valu <- data_cli$rhs150d0
+  
+  # Zuerich
+  data_cli_sma <- read.table(paste0(base_dir, "data/idaweb/order64389/order_64389_data.txt"), 
+                         sep = ";", skip = 2, header = T, na.strings = c("-"))
+  data_cli_sma$date <- as.POSIXct(strptime(data_cli$time, "%Y%m%d", tz="UTC"))
+  data_cli_sma$valu <- data_cli$rhs150d0
+  
+  #Swiss mix (mean precipitation from three swiss stations)
+  data_cli <- data_cli_bas
+  rain_swiss <- cbind(data_cli_bas$valu, data_cli_ber$valu, data_cli_sma$valu)
+  data_cli$valu <- apply(test, 1, mea_na)
+  
+}
 #calc_wtc_cli----
-
-f_wtc_cli <- function(wtc_data_in, clim_data_in, annu_analy, 
-                      wtc_sel = my_wtc_sel, method_analy){
-  
-  start_date <- as.POSIXct(strptime(start_day, "%Y-%m-%d", tz="UTC"))
-  end_date   <- as.POSIXct(strptime(end_day,   "%Y-%m-%d", tz="UTC"))
-  full_date  <- seq(start_date, end_date, by="day")
-  
-  data_wtc <- data.frame(date = full_date,
-                         value = with(wtc_data_in, wtc_data_in$valu[match(full_date, date)]))
-  
-  data_cli <- data.frame(date = full_date,
-                         value = with(clim_data_in, clim_data_in$valu[match(full_date, date)]))
-  
-  n_wtcs <- length(wtc_sel)
-  n_year <- length(start_year:end_year)
-  
-  
-  f_wtc_annu <- function(input_wtc, input_cli, gwt_sel, my_annu_analy = annu_analy){
-    
-    #Remove 29th of February
-    input_wtc <- input_wtc[-which(format(input_wtc$date, "%m%d") == "0229"),]
-    input_cli <- input_cli[-which(format(input_cli$date, "%m%d") == "0229"),]
-    
-    #Vector with the 365 days of the year
-    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
-    days <- format(days,"%m-%d")
-    
-    #Order data by day
-    data_day_wtc <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
-    data_day_cli <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
-    colnames(data_day_wtc) <- c("year", days)
-    colnames(data_day_cli) <- c("year", days)
-    data_day_wtc[ ,1] <- start_year:end_year
-    data_day_cli[ ,1] <- start_year:end_year
-    
-    for(i in 0:(length(start_year:end_year)-1)) {
-      
-      data_day_wtc[i+1, 2:366] <- input_wtc$valu[(i*365+1):((i+1)*365)]
-      data_day_cli[i+1, 2:366] <- input_cli$valu[(i*365+1):((i+1)*365)]
-      
-    }
-    
-    wtc_out <- rep(NA, nrow(data_day_cli))
-    
-    for(i in 1:nrow(data_day_cli)){
-      
-      if(my_annu_analy == "mean"){
-        
-        wtc_out[i] <- mea_na(data_day_cli[i, which(data_day_wtc[i, ] == gwt_sel)])
-        
-      }
-      
-      if(my_annu_analy == "sum"){
-        
-        wtc_out[i] <- sum_na(data_day_cli[i, which(data_day_wtc[i, ] == gwt_sel)])
-        
-      }
-      
-    }
-    
-    return(wtc_out)
-    
-  }
-  
-  wtc_out <- matrix(data=rep(NA, n_wtcs*n_year), ncol = n_wtcs)
-  
-  for(i in 1:n_wtcs){
-    
-    wtc_out[, i] <- f_wtc_annu(input_wtc = data_wtc,
-                               input_cli = data_cli,
-                               gwt_sel = i)
-  }
-  
-  if(method_analy == "mean"){
-    
-    wtc_return <- apply(wtc_out, 2, mea_na)
-    
-  }
-  
-  if(method_analy == "sens_slope"){
-    
-    wtc_return <- apply(wtc_out, 2, sens_slope) * 10 # per decade
-    
-  }
-  
-  
-  return(wtc_return)
-  
-} 
-
 
 wtc_sum_mea <- f_wtc_cli(wtc_data_in = wtc_data,
                          clim_data_in = data_cli,
@@ -280,163 +178,150 @@ if(cli_sel == "Hohenpeissenberg"){
 
 #calc_wtc----
 
-f_wtc_fre <- function(wtc_data_in, wtc_sel = my_wtc_sel, method_analy){
-  
-  start_date <- as.POSIXct(strptime(start_day, "%Y-%m-%d", tz="UTC"))
-  end_date   <- as.POSIXct(strptime(end_day,   "%Y-%m-%d", tz="UTC"))
-  full_date  <- seq(start_date, end_date, by="day")
-  
-  data_wtc <- data.frame(date = full_date,
-                         value = with(wtc_data_in, wtc_data_in$valu[match(full_date, date)]))
-  
-  n_wtcs <- length(wtc_sel)
-  n_year <- length(start_year:end_year)
-  
-  f_annu_fre <- function(input_wtc, gwt_sel){
-    
-    #Remove 29th of February
-    input_wtc <- input_wtc[-which(format(input_wtc$date, "%m%d") == "0229"),]
-    
-    #Vector with the 365 days of the year
-    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
-    days <- format(days,"%m-%d")
-    
-    #Order data by day
-    data_day_wtc <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
-    colnames(data_day_wtc) <- c("year", days)
-    data_day_wtc[ ,1] <- start_year:end_year
-    
-    for(i in 0:(length(start_year:end_year)-1)) {
-      
-      data_day_wtc[i+1, 2:366] <- input_wtc$valu[(i*365+1):((i+1)*365)]
-      
-    }
-    
-    fre_wtc <- rep(NA, nrow(data_day_wtc))
-    
-    for(i in 1:nrow(data_day_wtc)){
-      
-      fre_wtc[i] <-length(which(data_day_wtc[i, ] == gwt_sel))
-      
-    }
-    
-    return(fre_wtc)
-    
-  }
-  
-  wtc_fre <- matrix(data=rep(NA, n_wtcs*n_year), ncol = n_wtcs)
-  
-  k <- 1
-  for(i in wtc_sel){
-
-    wtc_fre[, k] <- f_annu_fre(input_wtc = data_wtc,
-                               gwt_sel = i)
-    k <- k+1
-  }
-  
-  if(method_analy == "mean"){
-    
-    wtc_fre_out <- apply(wtc_fre, 2, mea_na)
-    
-  }
-  
-  if(method_analy == "sens_slope"){
-    
-    wtc_fre_out <- apply(wtc_fre, 2, sens_slope) * 10 # per decaade
-    
-  }
-  
-  return(wtc_fre_out)
-  
-}
-
 wtc_fre_mea <- f_wtc_fre(wtc_data_in = wtc_data, 
                          method_analy = "mean")
 
 wtc_fre_slo <- f_wtc_fre(wtc_data_in = wtc_data, 
                          method_analy = "sens_slope")
 
-#visu----
+#visu_with_hoh----
 
-#Plot: Mean annual frequency of weather types
+layout(matrix(c(1,3,5, 2,4,6),
+              3, 2), widths=c(), heights=c(1,1,1,1))
+par(oma = c(0,0,0,0))
 
-plot(wtc_fre_mea, pch = 19, type = "h", lwd = 8, lend = 1)
+mar_1 <- c(2.2, 2.0, 2.0, 0.5)
+mar_2 <- c(3.2, 2.2, 2.2, 0.5)
+
+gap_lenght <- 2
+lwd_bar <- 2.5
+gaps_wtc_plot <- 0:25 * gap_lenght
+size_y_labs <- 1.5
+size_x_labs <- 1.5
+size_main <- 1.5
+line_main <- 0.3
+x_lab_posi <- c(1:8, 10, 12, 14, 16, 18, 20, 22, 24, 26)
+
+par(family = "serif")
+
+#Plot a: Mean annual frequency of weather types
+
+par(mar = mar_1)
+
+my_ylim <- c(0, max_na(wtc_fre_mea) + 5)
+my_xlim <- c(0.5, 26.5)
+
+plot(wtc_fre_mea, pch = 19, type = "h", lwd = 8, lend = 1, axes = F, xlab = "", ylab = "",
+     xaxs = "i", yaxs = "i", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = (1:27)-0.5, labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = x_lab_posi, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
 abline(h = 0, lty = "dashed")
 abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
+mtext("a) Annaul GWT frequency [ndays]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
 
-#Plot: Trend annual frequency of weather types
+directs <- rep(c("W", "SW", "NW", "N", "NE", "E", "SE", "S"), 3)
+pos_labs <- (1:26)
+for (i in 1:8){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 9:16){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 17:24){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+mtext("cyclonic",                  side = 3, line = -1.8, adj = 0.12, padj = 1, cex = 0.8)
+mtext("anticyclonic",              side = 3, line = -1.8, adj = 0.45, padj = 1, cex = 0.8)
+mtext("indifferent",               side = 3, line = -1.8, adj = 0.79, padj = 1, cex = 0.8)
+mtext("low pressure",              side = 4, line = -3.8, adj = 0.90, padj = 1, cex = 0.8)
+mtext("high pressure",             side = 4, line = -2.1, adj = 0.925, padj = 1, cex = 0.8)
 
-plot(wtc_fre_slo, pch = 19, type = "h", lwd = 8, lend = 1)
+#Plot b: Trend annual frequency of weather types
+
+my_ylim <- c(min_na(wtc_fre_slo) - 0.2, max_na(wtc_fre_slo) + 0.2)
+my_xlim <- c(0.5, 26.5)
+
+plot(wtc_fre_slo, pch = 19, type = "h", lwd = 8, lend = 1, axes = F, xlab = "", ylab = "",
+     xaxs = "i", yaxs = "i", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = (1:27)-0.5, labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = x_lab_posi, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
 abline(h = 0, lty = "dashed")
 abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
+mtext("b) Trend annaul GWT frequency [ndays/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
 
-#Plot: Mean of annual mean of precipitation for WTs
-
-max_lim <- max_na(c(wtc_mea_mea_bas, wtc_mea_mea_ber, wtc_mea_mea_sma, wtc_mea_mea_hoh))
-min_lim <- min_na(c(wtc_mea_mea_bas, wtc_mea_mea_ber, wtc_mea_mea_sma, wtc_mea_mea_hoh))
-
-plot(wtc_mea_mea_bas, type = "n", ylim = c(min_lim, max_lim))
-points(wtc_mea_mea_bas, col = "black", pch = 19)
-points(wtc_mea_mea_ber, col = "red3", pch = 19)
-points(wtc_mea_mea_sma, col = "blue3", pch = 19)
-points(wtc_mea_mea_hoh, col = "orange2", pch = 19)
-abline(h = 0, lty = "dashed")
-abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
-
-#Plot: Mean of annual sum of precipitation for WTs
-
-max_lim <- max_na(c(wtc_sum_mea_bas, wtc_sum_mea_ber, wtc_sum_mea_sma, wtc_sum_mea_hoh))
-min_lim <- min_na(c(wtc_sum_mea_bas, wtc_sum_mea_ber, wtc_sum_mea_sma, wtc_sum_mea_hoh))
-
-plot(wtc_sum_mea_bas, type = "n", ylim = c(min_lim, max_lim))
-points(wtc_sum_mea_bas, col = "black", pch = 19)
-points(wtc_sum_mea_ber, col = "red3", pch = 19)
-points(wtc_sum_mea_sma, col = "blue3", pch = 19)
-points(wtc_sum_mea_hoh, col = "orange2", pch = 19)
-abline(h = 0, lty = "dashed")
-abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
-
-#Plot: Trend annual sum precipitation for WTs
-
-max_lim <- max_na(c(wtc_sum_slo_bas, wtc_sum_slo_ber, wtc_sum_slo_sma, wtc_sum_slo_hoh))
-min_lim <- min_na(c(wtc_sum_slo_bas, wtc_sum_slo_ber, wtc_sum_slo_sma, wtc_sum_slo_hoh))
-
-plot(wtc_sum_slo_bas, type = "n", ylim = c(min_lim, max_lim))
-points(wtc_sum_slo_bas, col = "black", pch = 19)
-points(wtc_sum_slo_ber, col = "red3", pch = 19)
-points(wtc_sum_slo_sma, col = "blue3", pch = 19)
-points(wtc_sum_slo_hoh, col = "orange2", pch = 19)
-abline(h = 0, lty = "dashed")
-abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
+directs <- rep(c("W", "SW", "NW", "N", "NE", "E", "SE", "S"), 3)
+pos_labs <- (1:26)
+for (i in 1:8){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 9:16){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 1, line = - 1.2)
+}
+for (i in 17:24){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+mtext("cyclonic",                  side = 3, line = -1.8, adj = 0.12, padj = 1, cex = 0.8)
+mtext("anticyclonic",              side = 1, line = -3.2, adj = 0.45, padj = 1, cex = 0.8)
+mtext("indifferent",               side = 3, line = -1.8, adj = 0.79, padj = 1, cex = 0.8)
+mtext("low pressure",              side = 4, line = -3.8, adj = 0.10, padj = 1, cex = 0.8)
+mtext("high pressure",             side = 4, line = -2.1, adj = 0.10, padj = 1, cex = 0.8)
 
 
-#Plot: Trend annual mean precipitation for WTs
-
-max_lim <- max_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma, wtc_mea_slo_hoh))
-min_lim <- min_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma, wtc_mea_slo_hoh))
-
-plot(wtc_mea_slo_bas, type = "n", ylim = c(min_lim, max_lim))
-points(wtc_mea_slo_bas, col = "black", pch = 19)
-points(wtc_mea_slo_ber, col = "red3", pch = 19)
-points(wtc_mea_slo_sma, col = "blue3", pch = 19)
-points(wtc_mea_slo_hoh, col = "orange2", pch = 19)
-
-abline(h = 0, lty = "dashed")
-abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
-
-
-
-
-
-
+# Plot c: Mean precipitation per GWT
 
 gap_lenght <- 2
 lwd_bar <- 2.5
 gaps_wtc_plot <- 0:25 * gap_lenght
 
-my_ylim <- c(min_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma, wtc_mea_slo_hoh)),
-             max_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma, wtc_mea_slo_hoh)))
-my_xlim <- c(-0.5,(3 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+my_ylim <- c(0, max_na(c(wtc_mea_mea_bas, wtc_mea_mea_ber, wtc_mea_mea_sma, wtc_mea_mea_hoh)) + 1.2)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_mea_mea_bas, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_mea_mea_ber, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_mea_mea_sma, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_mea_mea_hoh, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("c) Precipitation per occurence [mm/day]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+mtext("Basel",     side = 3, line = -3.0 + 2.5, adj = 0.005, padj = 1, cex = 0.6)
+mtext("Bern",      side = 3, line = -3.6 + 2.5, adj = 0.016, padj = 1, cex = 0.6)
+mtext("Zuerich",   side = 3, line = -4.2 + 2.5, adj = 0.022,  padj = 1, cex = 0.6)
+mtext("Hohenp.",   side = 3, line = -4.8 + 2.5, adj = 0.029, padj = 1, cex = 0.6)
+
+lines(c(1,1), c(9.9, 11.25), type = "l", lwd = 0.5)
+lines(c(2,2), c(9.9, 10.80), type = "l", lwd = 0.5)
+lines(c(3,3), c(9.9, 10.35), type = "l", lwd = 0.5)
+lines(c(4,4), c(9.9, 10.00), type = "l", lwd = 0.5)
+
+
+# Plot: d: Trend mean precipiation per day
+
+my_ylim <- c(min_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma, wtc_mea_slo_hoh)) - 0.03, 
+             max_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma, wtc_mea_slo_hoh)) + 0.03)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
 
 plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_mea_slo_bas, type = "h", col = "black", lwd = 3, lend = 2,
      xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
@@ -449,25 +334,528 @@ plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_mea_slo_sma, type = "h", col = "black
 par(new = T)
 plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_mea_slo_hoh, type = "h", col = "black", lwd = 3, lend = 2,
      xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
-
 axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
      col="black", col.axis="black", tck=-0.04)#plot ticks
-axis(1, at = ((1:26) * 4) + gaps_wtc_plot -1.5, labels = 1:26, tick = FALSE,
-     col = "black", col.axis = "black", mgp = c(3, 0.0, 0), cex.axis = 1)
-axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = 1)
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
 abline(h = 0, lty = "dashed", lwd = 0.7)
 abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("d) Trend precipiation per occur. [(mm/day)/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+
+# Plot e: Mean annual sum
+
+par(mar = mar_2)
+
+my_ylim <- c(0, max_na(c(wtc_sum_mea_bas, wtc_sum_mea_ber, wtc_sum_mea_sma, wtc_sum_mea_hoh)) + 5)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_sum_mea_bas, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_sum_mea_ber, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_sum_mea_sma, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_sum_mea_hoh, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("e) Annual total precipiation [mm/year]", side = 3, line = line_main, cex = size_main, adj = 0)
+mtext("GWT26 weather type", side = 1, line = 2, cex = 1.2, adj = 0.5)
+box(lwd = 1.2)
+
+mtext("Basel",     side = 3, line = -3.0 - 0.8, adj = 0.005, padj = 1, cex = 0.6)
+mtext("Bern",      side = 3, line = -3.6 - 0.8, adj = 0.016, padj = 1, cex = 0.6)
+mtext("Zuerich",   side = 3, line = -4.2 - 0.8, adj = 0.022, padj = 1, cex = 0.6)
+mtext("Hohenp.",   side = 3, line = -4.8 - 0.8, adj = 0.029, padj = 1, cex = 0.6)
+
+lines(c(1,1), c(75+0, 129-20), type = "l", lwd = 0.5)
+lines(c(2,2), c(75+0, 122-20), type = "l", lwd = 0.5)
+lines(c(3,3), c(75+0, 116-20), type = "l", lwd = 0.5)
+lines(c(4,4), c(75+0, 110-20), type = "l", lwd = 0.5)
+
+# Plot f: Trend annual sum
+
+my_ylim <- c(min_na(c(wtc_sum_slo_bas, wtc_sum_slo_ber, wtc_sum_slo_sma, wtc_sum_slo_hoh)) - 0.5,
+             max_na(c(wtc_sum_slo_bas, wtc_sum_slo_ber, wtc_sum_slo_sma, wtc_sum_slo_hoh)) + 0.5)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_sum_slo_bas, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_sum_slo_ber, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_sum_slo_sma, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_sum_slo_hoh, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("f) Trend annual total precipiation [(mm/year)/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+mtext("GWT26 weather type", side = 1, line = 2, cex = 1.2, adj = 0.5)
 box(lwd = 1.2)
 
 
 
 
-mtext("cyclonic",     side = 3, line = -1.8, adj = 0.12, padj = 1, cex = 0.8)
-mtext("anticyclonic", side = 1, line = -3.3, adj = 0.45, padj = 1, cex = 0.8)
-mtext("indifferent",  side = 3, line = -1.8, adj = 0.79, padj = 1, cex = 0.8)
-mtext("low pressure", side = 4, line = -4.2, adj = 0.94, padj = 1, cex = 0.8)
-mtext("high press.",  side = 4, line = -2.3, adj = 0.05, padj = 1, cex = 0.8)
 
+
+
+
+
+
+
+
+
+#visu_no_hoh----
+
+layout(matrix(c(1,3,5, 2,4,6),
+              3, 2), widths=c(), heights=c(1,1,1,1))
+par(oma = c(0,0,0,0))
+
+mar_1 <- c(2.2, 2.0, 2.0, 0.5)
+mar_2 <- c(3.2, 2.2, 2.2, 0.5)
+
+gap_lenght <- 2
+lwd_bar <- 2.5
+gaps_wtc_plot <- 0:25 * gap_lenght
+size_y_labs <- 1.5
+size_x_labs <- 1.5
+size_main <- 1.5
+line_main <- 0.3
+x_lab_posi <- c(1:8, 10, 12, 14, 16, 18, 20, 22, 24, 26)
+
+par(family = "serif")
+
+#Plot a: Mean annual frequency of weather types
+
+par(mar = mar_1)
+
+my_ylim <- c(0, max_na(wtc_fre_mea) + 5)
+my_xlim <- c(0.5, 26.5)
+
+plot(wtc_fre_mea, pch = 19, type = "h", lwd = 8, lend = 1, axes = F, xlab = "", ylab = "",
+     xaxs = "i", yaxs = "i", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = (1:27)-0.5, labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = x_lab_posi, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed")
+abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
+mtext("a) Annaul GWT frequency [ndays]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+directs <- rep(c("W", "SW", "NW", "N", "NE", "E", "SE", "S"), 3)
+pos_labs <- (1:26)
+for (i in 1:8){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 9:16){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 17:24){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+mtext("cyclonic",                  side = 3, line = -1.8, adj = 0.12, padj = 1, cex = 0.8)
+mtext("anticyclonic",              side = 3, line = -1.8, adj = 0.45, padj = 1, cex = 0.8)
+mtext("indifferent",               side = 3, line = -1.8, adj = 0.79, padj = 1, cex = 0.8)
+mtext("low pressure",              side = 4, line = -3.8, adj = 0.90, padj = 1, cex = 0.8)
+mtext("high pressure",             side = 4, line = -2.1, adj = 0.925, padj = 1, cex = 0.8)
+
+#Plot b: Trend annual frequency of weather types
+
+my_ylim <- c(min_na(wtc_fre_slo) - 0.2, max_na(wtc_fre_slo) + 0.2)
+my_xlim <- c(0.5, 26.5)
+
+plot(wtc_fre_slo, pch = 19, type = "h", lwd = 8, lend = 1, axes = F, xlab = "", ylab = "",
+     xaxs = "i", yaxs = "i", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = (1:27)-0.5, labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = x_lab_posi, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed")
+abline(v = c(8.5, 16.5, 24.5), lty = "dashed")
+mtext("b) Trend annaul GWT frequency [ndays/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+directs <- rep(c("W", "SW", "NW", "N", "NE", "E", "SE", "S"), 3)
+pos_labs <- (1:26)
+for (i in 1:8){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 9:16){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 1, line = - 1.2)
+}
+for (i in 17:24){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+mtext("cyclonic",                  side = 3, line = -1.8, adj = 0.12, padj = 1, cex = 0.8)
+mtext("anticyclonic",              side = 1, line = -3.2, adj = 0.45, padj = 1, cex = 0.8)
+mtext("indifferent",               side = 3, line = -1.8, adj = 0.79, padj = 1, cex = 0.8)
+mtext("low pressure",              side = 4, line = -3.8, adj = 0.10, padj = 1, cex = 0.8)
+mtext("high pressure",             side = 4, line = -2.1, adj = 0.10, padj = 1, cex = 0.8)
+
+
+# Plot c: Mean precipitation per GWT
+
+gap_lenght <- 2
+lwd_bar <- 2.5
+gaps_wtc_plot <- 0:25 * gap_lenght
+
+my_ylim <- c(0, max_na(c(wtc_mea_mea_bas, wtc_mea_mea_ber, wtc_mea_mea_sma)) + 1.2)
+my_xlim <- c(-0.5,(3 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 3 - 2) + gaps_wtc_plot, wtc_mea_mea_bas, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 1) + gaps_wtc_plot, wtc_mea_mea_ber, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 0) + gaps_wtc_plot, wtc_mea_mea_sma, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+# par(new = T)
+# plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_mea_mea_hoh, type = "h", col = "black", lwd = 3, lend = 2,
+#      xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 3 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 3) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 3 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("c) Precipitation per occurence [mm/day]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+mtext("Basel",     side = 3, line = -3.0 + 2.5, adj = 0.005, padj = 1, cex = 0.6)
+mtext("Bern",      side = 3, line = -3.6 + 2.5, adj = 0.016, padj = 1, cex = 0.6)
+mtext("Zuerich",   side = 3, line = -4.2 + 2.5, adj = 0.022,  padj = 1, cex = 0.6)
+# mtext("Hohenp.",   side = 3, line = -4.8 + 2.5, adj = 0.029, padj = 1, cex = 0.6)
+
+lines(c(1,1), c(9.9, 11.25), type = "l", lwd = 0.5)
+lines(c(2,2), c(9.9, 10.80), type = "l", lwd = 0.5)
+lines(c(3,3), c(9.9, 10.35), type = "l", lwd = 0.5)
+# lines(c(4,4), c(9.9, 10.00), type = "l", lwd = 0.5)
+
+
+# Plot: d: Trend mean precipiation per day
+
+my_ylim <- c(min_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma)) - 0.03, 
+             max_na(c(wtc_mea_slo_bas, wtc_mea_slo_ber, wtc_mea_slo_sma)) + 0.03)
+my_xlim <- c(-0.5,(3 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 3 - 2) + gaps_wtc_plot, wtc_mea_slo_bas, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 1) + gaps_wtc_plot, wtc_mea_slo_ber, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 0) + gaps_wtc_plot, wtc_mea_slo_sma, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+# par(new = T)
+# plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_mea_slo_hoh, type = "h", col = "black", lwd = 3, lend = 2,
+#      xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 3 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 3) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 3 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("d) Trend precipiation per occur. [(mm/day)/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+
+# Plot e: Mean annual sum
+
+par(mar = mar_2)
+
+my_ylim <- c(0, max_na(c(wtc_sum_mea_bas, wtc_sum_mea_ber, wtc_sum_mea_sma)) + 5)
+my_xlim <- c(-0.5,(3 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 3 - 2) + gaps_wtc_plot, wtc_sum_mea_bas, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 1) + gaps_wtc_plot, wtc_sum_mea_ber, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 0) + gaps_wtc_plot, wtc_sum_mea_sma, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+
+axis(1, at = c(-0.5, ((1:26) * 3 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = (x_lab_posi * 3) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 3 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("e) Annual total precipiation [mm/year]", side = 3, line = line_main, cex = size_main, adj = 0)
+mtext("GWT26 weather type", side = 1, line = 2, cex = 1.2, adj = 0.5)
+box(lwd = 1.2)
+
+mtext("Basel",     side = 3, line = -3.0 - 0.8, adj = 0.005, padj = 1, cex = 0.6)
+mtext("Bern",      side = 3, line = -3.6 - 0.8, adj = 0.016, padj = 1, cex = 0.6)
+mtext("Zuerich",   side = 3, line = -4.2 - 0.8, adj = 0.022, padj = 1, cex = 0.6)
+# mtext("Hohenp.",   side = 3, line = -4.8 - 0.8, adj = 0.029, padj = 1, cex = 0.6)
+
+lines(c(1,1), c(75+0, 129-20), type = "l", lwd = 0.5)
+lines(c(2,2), c(75+0, 122-20), type = "l", lwd = 0.5)
+lines(c(3,3), c(75+0, 116-20), type = "l", lwd = 0.5)
+# lines(c(4,4), c(75+0, 110-20), type = "l", lwd = 0.5)
+
+# Plot f: Trend annual sum
+
+my_ylim <- c(min_na(c(wtc_sum_slo_bas, wtc_sum_slo_ber, wtc_sum_slo_sma)) - 0.5,
+             max_na(c(wtc_sum_slo_bas, wtc_sum_slo_ber, wtc_sum_slo_sma)) + 0.5)
+my_xlim <- c(-0.5,(3 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 3 - 3) + gaps_wtc_plot, wtc_sum_slo_bas, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 2) + gaps_wtc_plot, wtc_sum_slo_ber, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 3 - 1) + gaps_wtc_plot, wtc_sum_slo_sma, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+# par(new = T)
+# plot(((1:26) * 3 - 0) + gaps_wtc_plot, wtc_sum_slo_hoh, type = "h", col = "black", lwd = 3, lend = 2,
+#      xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 3) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 3 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("f) Trend annual total precipiation [(mm/year)/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+mtext("GWT26 weather type", side = 1, line = 2, cex = 1.2, adj = 0.5)
+box(lwd = 1.2)
+
+
+
+#calc_season----
+
+my_seasons <- c("winter", "spring", "summer", "autumn")
+
+for(i in 1:length(my_seasons)){
+  
+  seas_sel <- my_seasons[i]
+  print(paste(Sys.time(), seas_sel))
+  
+  if(seas_sel == "winter"){
+    wtc_data_seas <- wtc_data
+    wtc_data_seas$valu[which(!format(wtc_data$date, '%m') %in% c("12","01","02"))] <- NA
+  }
+  if(seas_sel == "spring"){
+    wtc_data_seas <- wtc_data
+    wtc_data_seas$valu[which(!format(wtc_data$date, '%m') %in% c("03","04","05"))] <- NA
+  }
+  if(seas_sel == "summer"){
+    wtc_data_seas <- wtc_data
+    wtc_data_seas$valu[which(!format(wtc_data$date, '%m') %in% c("06","07","08"))] <- NA
+  }
+  if(seas_sel == "autumn"){
+    wtc_data_seas <- wtc_data
+    wtc_data_seas$valu[which(!format(wtc_data$date, '%m') %in% c("09","10","11"))] <- NA
+  }
+  
+  wtc_fre_mea <- f_wtc_fre(wtc_data_in = wtc_data_seas, 
+                           method_analy = "mean")
+  
+  wtc_fre_slo <- f_wtc_fre(wtc_data_in = wtc_data_seas, 
+                           method_analy = "sens_slope")
+  
+  wtc_sum_mea <- f_wtc_cli(wtc_data_in = wtc_data_seas,
+                           clim_data_in = data_cli,
+                           annu_analy = "sum",
+                           wtc_sel = my_wtc_sel,
+                           method_analy = "mean")
+  
+  wtc_sum_slo <- f_wtc_cli(wtc_data_in = wtc_data_seas,
+                           clim_data_in = data_cli,
+                           annu_analy = "sum",
+                           wtc_sel = my_wtc_sel,
+                           method_analy = "sens_slope")
+  
+  wtc_mea_mea <- f_wtc_cli(wtc_data_in = wtc_data_seas,
+                           clim_data_in = data_cli,
+                           annu_analy = "mean",
+                           wtc_sel = my_wtc_sel,
+                           method_analy = "mean")
+  
+  wtc_mea_slo <- f_wtc_cli(wtc_data_in = wtc_data_seas,
+                           clim_data_in = data_cli,
+                           annu_analy = "mean",
+                           wtc_sel = my_wtc_sel,
+                           method_analy = "sens_slope")
+  
+  if(seas_sel == "winter"){
+    
+    wtc_fre_mea_win <- wtc_fre_mea
+    wtc_fre_slo_win <- wtc_fre_slo 
+    
+    wtc_sum_mea_win <- wtc_sum_mea
+    wtc_sum_slo_win <- wtc_sum_slo
+    wtc_mea_mea_win <- wtc_mea_mea
+    wtc_mea_slo_win <- wtc_mea_slo
+    
+  }
+  
+  if(seas_sel == "spring"){
+    
+    wtc_fre_mea_spr <- wtc_fre_mea
+    wtc_fre_slo_spr <- wtc_fre_slo 
+    
+    wtc_sum_mea_spr <- wtc_sum_mea
+    wtc_sum_slo_spr <- wtc_sum_slo
+    wtc_mea_mea_spr <- wtc_mea_mea
+    wtc_mea_slo_spr <- wtc_mea_slo
+    
+  }
+  
+  if(seas_sel == "summer"){
+    
+    wtc_fre_mea_sum <- wtc_fre_mea
+    wtc_fre_slo_sum <- wtc_fre_slo 
+    
+    wtc_sum_mea_sum <- wtc_sum_mea
+    wtc_sum_slo_sum <- wtc_sum_slo
+    wtc_mea_mea_sum <- wtc_mea_mea
+    wtc_mea_slo_sum <- wtc_mea_slo
+    
+  }
+  
+  if(seas_sel == "autumn"){
+    
+    wtc_fre_mea_aut <- wtc_fre_mea
+    wtc_fre_slo_aut <- wtc_fre_slo 
+    
+    wtc_sum_mea_aut <- wtc_sum_mea
+    wtc_sum_slo_aut <- wtc_sum_slo
+    wtc_mea_mea_aut <- wtc_mea_mea
+    wtc_mea_slo_aut <- wtc_mea_slo
+    
+  }
+  
+}
+
+#visu_season----
+
+layout(matrix(c(1,3,5, 2,4,6),
+              3, 2), widths=c(), heights=c(1,1,1,1))
+par(oma = c(0,0,0,0))
+
+mar_1 <- c(2.2, 2.0, 2.0, 0.5)
+mar_2 <- c(3.2, 2.2, 2.2, 0.5)
+
+gap_lenght <- 2
+lwd_bar <- 2.5
+gaps_wtc_plot <- 0:25 * gap_lenght
+size_y_labs <- 1.5
+size_x_labs <- 1.5
+size_main <- 1.5
+line_main <- 0.3
+x_lab_posi <- c(1:8, 10, 12, 14, 16, 18, 20, 22, 24, 26)
+
+par(family = "serif")
+
+#Plot a: Mean annual frequency of weather types
+
+par(mar = mar_1)
+
+my_ylim <- c(min_na(c(wtc_fre_mea_win, wtc_fre_mea_spr, wtc_fre_mea_sum, wtc_fre_mea_aut)) - 0.03, 
+             max_na(c(wtc_fre_mea_win, wtc_fre_mea_spr, wtc_fre_mea_sum, wtc_fre_mea_aut)) + 0.03)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_fre_mea_spr, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_fre_mea_sum, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_fre_mea_aut, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_fre_mea_win, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("a) Annaul GWT frequency [ndays]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+directs <- rep(c("W", "SW", "NW", "N", "NE", "E", "SE", "S"), 3)
+pos_labs <- ((1:26) * 4 - 1.5) + gaps_wtc_plot
+for (i in 1:8){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 9:16){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+for (i in 17:24){
+  mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
+}
+mtext("cyclonic",                  side = 3, line = -1.8, adj = 0.12, padj = 1, cex = 0.8)
+mtext("anticyclonic",              side = 3, line = -1.8, adj = 0.45, padj = 1, cex = 0.8)
+mtext("indifferent",               side = 3, line = -1.8, adj = 0.79, padj = 1, cex = 0.8)
+mtext("low pressure",              side = 4, line = -3.8, adj = 0.90, padj = 1, cex = 0.8)
+mtext("high pressure",             side = 4, line = -2.1, adj = 0.925, padj = 1, cex = 0.8)
+
+#Plot b: Trend annual frequency of weather types
+
+my_ylim <- c(min_na(c(wtc_fre_slo_win, wtc_fre_slo_spr, wtc_fre_slo_sum, wtc_fre_slo_aut)) - 0.03, 
+             max_na(c(wtc_fre_slo_win, wtc_fre_slo_spr, wtc_fre_slo_sum, wtc_fre_slo_aut)) + 0.03)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_fre_slo_spr, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_fre_slo_sum, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_fre_slo_aut, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_fre_slo_win, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("b) Trend annaul GWT frequency [ndays/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
 
 directs <- rep(c("W", "SW", "NW", "N", "NE", "E", "SE", "S"), 3)
 pos_labs <- ((1:26) * 4 - 1.5) + gaps_wtc_plot
@@ -480,20 +868,189 @@ for (i in 9:16){
 for (i in 17:24){
   mtext(text = directs[i], at = pos_labs[i], cex = 0.7, side = 3, line = - 1.2)
 }
+mtext("cyclonic",                  side = 3, line = -1.8, adj = 0.12, padj = 1, cex = 0.8)
+mtext("anticyclonic",              side = 1, line = -3.2, adj = 0.45, padj = 1, cex = 0.8)
+mtext("indifferent",               side = 3, line = -1.8, adj = 0.79, padj = 1, cex = 0.8)
+mtext("low pressure",              side = 4, line = -3.8, adj = 0.10, padj = 1, cex = 0.8)
+mtext("high pressure",             side = 4, line = -2.1, adj = 0.10, padj = 1, cex = 0.8)
+
+
+# Plot c: Mean precipitation per GWT
+
+gap_lenght <- 2
+lwd_bar <- 2.5
+gaps_wtc_plot <- 0:25 * gap_lenght
+
+my_ylim <- c(0, max_na(c(wtc_mea_mea_win, wtc_mea_mea_spr, wtc_mea_mea_sum, wtc_mea_mea_aut)) + 1.2)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_mea_mea_spr, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_mea_mea_sum, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_mea_mea_aut, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_mea_mea_win, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("c) Precipitation per occurence [mm/day]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+mtext("spring",     side = 3, line = -3.0 + 2.5, adj = 0.005, padj = 1, cex = 0.6)
+mtext("summer",      side = 3, line = -3.6 + 2.5, adj = 0.016, padj = 1, cex = 0.6)
+mtext("autumn",   side = 3, line = -4.2 + 2.5, adj = 0.022,  padj = 1, cex = 0.6)
+mtext("winter",   side = 3, line = -4.8 + 2.5, adj = 0.029, padj = 1, cex = 0.6)
+
+lines(c(1,1), c(9.9, 11.25), type = "l", lwd = 0.5)
+lines(c(2,2), c(9.9, 10.80), type = "l", lwd = 0.5)
+lines(c(3,3), c(9.9, 10.35), type = "l", lwd = 0.5)
+lines(c(4,4), c(9.9, 10.00), type = "l", lwd = 0.5)
+
+
+# Plot: d: Trend mean precipiation per day
+
+my_ylim <- c(min_na(c(wtc_mea_slo_win, wtc_mea_slo_spr, wtc_mea_slo_sum, wtc_mea_slo_aut)) - 0.03, 
+             max_na(c(wtc_mea_slo_win, wtc_mea_slo_spr, wtc_mea_slo_sum, wtc_mea_slo_aut)) + 0.03)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_mea_slo_spr, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_mea_slo_sum, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_mea_slo_aut, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_mea_slo_win, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("d) Trend precipiation per occur. [(mm/day)/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+box(lwd = 1.2)
+
+
+# Plot e: Mean annual sum
+
+par(mar = mar_2)
+
+my_ylim <- c(0, max_na(c(wtc_sum_mea_win, wtc_sum_mea_spr, wtc_sum_mea_sum, wtc_sum_mea_aut)) + 5)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_sum_mea_spr, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_sum_mea_sum, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_sum_mea_aut, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_sum_mea_win, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("e) Annual total precipiation [mm/year]", side = 3, line = line_main, cex = size_main, adj = 0)
+mtext("GWT26 weather type", side = 1, line = 2, cex = 1.2, adj = 0.5)
+box(lwd = 1.2)
+
+mtext("spring",     side = 3, line = -3.0 - 0.8, adj = 0.005, padj = 1, cex = 0.6)
+mtext("summer",      side = 3, line = -3.6 - 0.8, adj = 0.016, padj = 1, cex = 0.6)
+mtext("autumn",   side = 3, line = -4.2 - 0.8, adj = 0.022, padj = 1, cex = 0.6)
+mtext("winter",   side = 3, line = -4.8 - 0.8, adj = 0.029, padj = 1, cex = 0.6)
+
+lines(c(1,1), c(75+0, 129-20), type = "l", lwd = 0.5)
+lines(c(2,2), c(75+0, 122-20), type = "l", lwd = 0.5)
+lines(c(3,3), c(75+0, 116-20), type = "l", lwd = 0.5)
+lines(c(4,4), c(75+0, 110-20), type = "l", lwd = 0.5)
+
+# Plot f: Trend annual sum
+
+my_ylim <- c(min_na(c(wtc_sum_slo_win, wtc_sum_slo_spr, wtc_sum_slo_sum, wtc_sum_slo_aut)) - 0.5,
+             max_na(c(wtc_sum_slo_win, wtc_sum_slo_spr, wtc_sum_slo_sum, wtc_sum_slo_aut)) + 0.5)
+my_xlim <- c(-0.5,(4 * 26 + gap_lenght*25) + gap_lenght - 0.5)
+
+plot(((1:26) * 4 - 3) + gaps_wtc_plot, wtc_sum_slo_spr, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 2) + gaps_wtc_plot, wtc_sum_slo_sum, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 1) + gaps_wtc_plot, wtc_sum_slo_aut, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+par(new = T)
+plot(((1:26) * 4 - 0) + gaps_wtc_plot, wtc_sum_slo_win, type = "h", col = "black", lwd = 3, lend = 2,
+     xaxs = "i", yaxs = "i", axes = F, ylab = "", xlab = "", ylim = my_ylim, xlim = my_xlim)
+axis(1, at = c(-0.5, ((1:26) * 4 + 1.5) + gaps_wtc_plot), labels = rep("", 27), tick = TRUE,
+     col="black", col.axis="black", tck=-0.04)#plot ticks
+
+axis(1, at = (x_lab_posi * 4) + gaps_wtc_plot[x_lab_posi] -1.5, labels = x_lab_posi, tick = FALSE,
+     col = "black", col.axis = "black", mgp = c(3, 0.4, 0), cex.axis = size_x_labs)
+axis(2, mgp = c(3, 0.3, 0), tck = -0.015, cex.axis = size_y_labs)
+abline(h = 0, lty = "dashed", lwd = 0.7)
+abline(v = c(8, 16, 24) * 4 + 1.5 + gaps_wtc_plot[c(8, 16, 24)], lty = "dashed", lwd = 0.7)
+mtext("f) Trend annual total precipiation [(mm/year)/decade]", side = 3, line = line_main, cex = size_main, adj = 0)
+mtext("GWT26 weather type", side = 1, line = 2, cex = 1.2, adj = 0.5)
+box(lwd = 1.2)
 
 
 
 
+#cpa27----
+# my_wtc_sel <- c(21, 24, 19, 17, 14, 4, 15, 10, 22, 23, 27, 13,6, 11, 8, 18, 3, 16,
+#                 1, 5, 7, 9, 20, 25, 12, 26, 2)
+# my_wtc_sel[19]
+#21 West, cyclonic
+#24 West-SouthWest, cyclonic
+#19 SouthWest, cyclonic
+#17 South-SouthWest, cyclonic
+#14 South-SouthEast, cyclonic
+#4 West-SouthWest, cyclonic, flat pressure
+#15 West-NorthWest, cyclonic
+#10 NorthWest, cyclonic
+#22 NorthEast, cyclonic
+#23 East, cyclonic
+#27 Westerly Flow over Southern Europe, cyclonic
+#13 Westerly Flow over Northern Europe
+#6 Trough over Central Europe
 
+#11 West-NorthWest, anticyclonic
+#8 South-SouthEast, anticyclonic
+#18 East-SouthEast, anticyclonic
+#3 NorthWest, anticyclonic, flat pressure
+#16 East, anticyclonic / indifferent
 
+#1 West, indifferent, flat pressure
+#5 NorthWest, indifferent
+#7 East-SouthEast, indifferent
+#9 East, indifferent
+#20 West, indifferent
 
-
-
-
-
-
-
-
+#25 Low pressure over the Alps
+#12 High pressure over the Alps
+#26 High pressure over Central Europe
+#2 High pressure over Eastern Europe
 
 
 

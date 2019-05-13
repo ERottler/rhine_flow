@@ -703,7 +703,7 @@ observeEvent(input$map_marker_click,{
     
     alptempr::image_scale(as.matrix(qvslo_long), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
     axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
-    mtext("Trend Fenster-Quantil [m³/sec/dec]", side = 4, line = 1.5, cex = 0.8)
+    mtext("Trend Fenster-Quantil [m³/sec/10a]", side = 4, line = 1.5, cex = 0.8)
     
     box()
     

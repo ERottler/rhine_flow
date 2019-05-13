@@ -15,8 +15,8 @@ end_year <- 2010
 # library(rEchseSnow)
 snow_params <- read.table(paste0(base_dir, "R/rhine_flow/snow_param.txt"), header = T, sep = ";")
 snow_exe <- paste0(base_dir, "snow_sim/snowAlone/snowAlone/Debug/snowAlone.exe")
-basin_sel <- "basel"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
-basin_stn <- "Basel_Rheinhalle"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
+basin_sel <- "alp_rhine"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
+basin_stn <- "Diepoldsau"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
 high_stat_thresh <- 1900 #1900
 middle_stat_thresh <- 900 #900
 
@@ -116,7 +116,7 @@ middle_stat_thresh <- 900 #900
   lon2D <- lon[lon_min_index : (lon_min_index+lon_count-1), lat_min_index : (lat_min_index+lat_count-1)]
   lat2D <- lat[lon_min_index : (lon_min_index+lon_count-1), lat_min_index : (lat_min_index+lat_count-1)]
   
-  #spatial grip points from lat/lon info
+  #spatial grid points from lat/lon info
   grid_points_cube_84 <-  sp::SpatialPoints(data.frame(lon = c(lon2D), lat = c(lat2D)), proj4string =  crswgs84)
   grid_points_cube     <- sp::spTransform(grid_points_cube_84, CRS = crs(basin, asText = T))
 
@@ -460,6 +460,13 @@ block_size <- 1000
 block_stas <- c(1, seq(block_size+1, ncol(temps_d), by = block_size))
 block_ends <- c(seq(block_size, ncol(temps_d), by = block_size), ncol(temps_d))
 
+#disturb input signal
+if(F){
+  # temps_d <- temps_d - 2
+  precs_d <- precs_d * 0.8
+}
+
+
 for(b in 1:length(block_stas)){
   
   print(paste(Sys.time(),"Snow simulations", "Block:", b, "out of", length(block_stas)))
@@ -587,30 +594,30 @@ smea[, which(snows_d[nrow(snows_d), ] > 5)] <- NA #remove 'glacier' points
 #Snow volume: mean average
 vmea <- smea * grid_m2
 
-#Snow height: trends 30DMA
-for(b in 1:length(block_stas)){
-  
-  snows_calc <- snows_d[, block_stas[b]:block_ends[b]]
-  
-  print(paste(Sys.time(),"Trends 30DMA swe", "Block:", b, "out of", length(block_stas)))
-  sslo_block <- foreach(i = 1:ncol(snows_calc), .combine = 'cbind') %dopar% {
-    
-    f_slo(snows_calc[, i]) * 10 #[m/dec]
-    
-  }
-  
-  if(b == 1){
-    sslo <- sslo_block
-  }else{
-    sslo <- cbind(sslo, sslo_block)
-  }
-  
-}
-
-sslo[, which(snows_d[nrow(snows_d), ] > 5)] <- NA #remove 'glacier' points
-
-#Snow volume: trends 30 DMA
-vslo <- sslo * grid_m2
+# #Snow height: trends 30DMA
+# for(b in 1:length(block_stas)){
+#   
+#   snows_calc <- snows_d[, block_stas[b]:block_ends[b]]
+#   
+#   print(paste(Sys.time(),"Trends 30DMA swe", "Block:", b, "out of", length(block_stas)))
+#   sslo_block <- foreach(i = 1:ncol(snows_calc), .combine = 'cbind') %dopar% {
+#     
+#     f_slo(snows_calc[, i]) * 10 #[m/dec]
+#     
+#   }
+#   
+#   if(b == 1){
+#     sslo <- sslo_block
+#   }else{
+#     sslo <- cbind(sslo, sslo_block)
+#   }
+#   
+# }
+# 
+# sslo[, which(snows_d[nrow(snows_d), ] > 5)] <- NA #remove 'glacier' points
+# 
+# #Snow volume: trends 30 DMA
+# vslo <- sslo * grid_m2
 
 #Snow accumulation and melt water outflow
 sv_diff <- function(snow_volume_in){
@@ -648,30 +655,30 @@ sdif[, which(snows_d[nrow(snows_d), ] > 5)] <- NA #remove 'glacier' points
 #Snow volume diff: mean average
 vdif <- sdif * grid_m2
 
-#Snow height diff: trends 30DMA
-for(b in 1:length(block_stas)){
-  
-  snows_calc <- snows_d_dif[, block_stas[b]:block_ends[b]]
-  
-  print(paste(Sys.time(),"Trends 30 DMA diff swe", "Block:", b, "out of", length(block_stas)))
-  sdis_block <- foreach(i = 1:ncol(snows_calc), .combine = 'cbind') %dopar% {
-    
-    f_slo(snows_calc[, i]) * 10 #[m/dec]
-    
-  }
-  
-  if(b == 1){
-    sdis <- sdis_block
-  }else{
-    sdis <- cbind(sdis, sdis_block)
-  }
-  
-}
-
-sdis[, which(snows_d[nrow(snows_d), ] > 5)] <- NA #remove 'glacier' points
-
-#Snow volume diff: trends 30 DMA
-vdis <- sdis * grid_m2 
+# #Snow height diff: trends 30DMA
+# for(b in 1:length(block_stas)){
+#   
+#   snows_calc <- snows_d_dif[, block_stas[b]:block_ends[b]]
+#   
+#   print(paste(Sys.time(),"Trends 30 DMA diff swe", "Block:", b, "out of", length(block_stas)))
+#   sdis_block <- foreach(i = 1:ncol(snows_calc), .combine = 'cbind') %dopar% {
+#     
+#     f_slo(snows_calc[, i]) * 10 #[m/dec]
+#     
+#   }
+#   
+#   if(b == 1){
+#     sdis <- sdis_block
+#   }else{
+#     sdis <- cbind(sdis, sdis_block)
+#   }
+#   
+# }
+# 
+# sdis[, which(snows_d[nrow(snows_d), ] > 5)] <- NA #remove 'glacier' points
+# 
+# #Snow volume diff: trends 30 DMA
+# vdis <- sdis * grid_m2 
 
 #Temperature: median average
 for(b in 1:length(block_stas)){
@@ -694,26 +701,26 @@ for(b in 1:length(block_stas)){
   
 }
 
-#Temperature: 30 DMA trends
-for(b in 1:length(block_stas)){
-  
-  temps_calc <- temps_d[, block_stas[b]:block_ends[b]]
-  
-  print(paste(Sys.time(),"30DMA trends temperature", "Block:", b, "out of", length(block_stas)))
-  
-  tslo_block <- foreach(i = 1:ncol(temps_calc), .combine = 'cbind') %dopar% {
-    
-    f_slo(temps_calc[, i]) * 10 #[°C/dec]
-    
-  }
-  
-  if(b == 1){
-    tslo <- tslo_block
-  }else{
-    tslo <- cbind(tslo, tslo_block)
-  }
-  
-}
+# #Temperature: 30 DMA trends
+# for(b in 1:length(block_stas)){
+#   
+#   temps_calc <- temps_d[, block_stas[b]:block_ends[b]]
+#   
+#   print(paste(Sys.time(),"30DMA trends temperature", "Block:", b, "out of", length(block_stas)))
+#   
+#   tslo_block <- foreach(i = 1:ncol(temps_calc), .combine = 'cbind') %dopar% {
+#     
+#     f_slo(temps_calc[, i]) * 10 #[°C/dec]
+#     
+#   }
+#   
+#   if(b == 1){
+#     tslo <- tslo_block
+#   }else{
+#     tslo <- cbind(tslo, tslo_block)
+#   }
+#   
+# }
 
 #Precipitation: mean average
 for(b in 1:length(block_stas)){
@@ -736,68 +743,68 @@ for(b in 1:length(block_stas)){
   
 }
 
-#Precipitation: 30 DMA trends
-for(b in 1:length(block_stas)){
-  
-  precs_calc <- precs_d[, block_stas[b]:block_ends[b]]
-  
-  print(paste(Sys.time(),"30DMA trends precipitation", "Block:", b, "out of", length(block_stas)))
-  
-  pslo_block <- foreach(i = 1:ncol(precs_calc), .combine = 'cbind') %dopar% {
-    
-    f_slo(precs_calc[, i]) * 10 #[mm/dec]
-    
-  }
-  
-  if(b == 1){
-    pslo <- pslo_block
-  }else{
-    pslo <- cbind(pslo, pslo_block)
-  }
-  
-}
-
-#Evaportranspiration: median average
-for(b in 1:length(block_stas)){
-  
-  petrs_calc <- petrs_d[, block_stas[b]:block_ends[b]]
-  
-  print(paste(Sys.time(),"Average median evapotranspiration", "Block:", b, "out of", length(block_stas)))
-  
-  emed_block <- foreach(i = 1:ncol(petrs_calc), .combine = 'cbind') %dopar% {
-    
-    f_med(petrs_calc[, i]) #[°C]
-    
-  }
-  
-  if(b == 1){
-    emed <- emed_block
-  }else{
-    emed <- cbind(emed, emed_block)
-  }
-  
-}
-
-#Evapotranspiration: 30 DMA trends
-for(b in 1:length(block_stas)){
-  
-  petrs_calc <- petrs_d[, block_stas[b]:block_ends[b]]
-  
-  print(paste(Sys.time(),"30DMA trends evapotranspiration", "Block:", b, "out of", length(block_stas)))
-  
-  eslo_block <- foreach(i = 1:ncol(petrs_calc), .combine = 'cbind') %dopar% {
-    
-    f_slo(petrs_calc[, i]) * 10 #[°C/dec]
-    
-  }
-  
-  if(b == 1){
-    eslo <- eslo_block
-  }else{
-    eslo <- cbind(eslo, eslo_block)
-  }
-  
-}
+# #Precipitation: 30 DMA trends
+# for(b in 1:length(block_stas)){
+#   
+#   precs_calc <- precs_d[, block_stas[b]:block_ends[b]]
+#   
+#   print(paste(Sys.time(),"30DMA trends precipitation", "Block:", b, "out of", length(block_stas)))
+#   
+#   pslo_block <- foreach(i = 1:ncol(precs_calc), .combine = 'cbind') %dopar% {
+#     
+#     f_slo(precs_calc[, i]) * 10 #[mm/dec]
+#     
+#   }
+#   
+#   if(b == 1){
+#     pslo <- pslo_block
+#   }else{
+#     pslo <- cbind(pslo, pslo_block)
+#   }
+#   
+# }
+# 
+# #Evaportranspiration: median average
+# for(b in 1:length(block_stas)){
+#   
+#   petrs_calc <- petrs_d[, block_stas[b]:block_ends[b]]
+#   
+#   print(paste(Sys.time(),"Average median evapotranspiration", "Block:", b, "out of", length(block_stas)))
+#   
+#   emed_block <- foreach(i = 1:ncol(petrs_calc), .combine = 'cbind') %dopar% {
+#     
+#     f_med(petrs_calc[, i]) #[°C]
+#     
+#   }
+#   
+#   if(b == 1){
+#     emed <- emed_block
+#   }else{
+#     emed <- cbind(emed, emed_block)
+#   }
+#   
+# }
+# 
+# #Evapotranspiration: 30 DMA trends
+# for(b in 1:length(block_stas)){
+#   
+#   petrs_calc <- petrs_d[, block_stas[b]:block_ends[b]]
+#   
+#   print(paste(Sys.time(),"30DMA trends evapotranspiration", "Block:", b, "out of", length(block_stas)))
+#   
+#   eslo_block <- foreach(i = 1:ncol(petrs_calc), .combine = 'cbind') %dopar% {
+#     
+#     f_slo(petrs_calc[, i]) * 10 #[°C/dec]
+#     
+#   }
+#   
+#   if(b == 1){
+#     eslo <- eslo_block
+#   }else{
+#     eslo <- cbind(eslo, eslo_block)
+#   }
+#   
+# }
 
 # tmea[, which(snows_d[nrow(snows_d), ] > 5)] <- NA #remove 'glacier' points
 
@@ -932,7 +939,8 @@ range(elevs_d)
 # my_elev_bands <- c(seq(180, 980, 20), 1500) #Neckar
 # my_elev_bands <- c(seq(100, 780, 20), 1500) #Nahe
 # my_elev_bands <- c(seq(180, 740, 20), 1500) #Lahn
-my_elev_bands <- c(seq(250, 3000, 50), 4000) #Basel
+# my_elev_bands <- c(seq(250, 3000, 50), 4000) #Basel
+my_elev_bands <- c(seq(400, 3000, 50), 4000) #Diepoldsau
 
 smea_band <- f_elev_bands(data_in = smea, func_aggr = "mean")
 vmea_band <- f_elev_bands(data_in = vmea, func_aggr = "sum")
@@ -940,7 +948,7 @@ vslo_band <- f_elev_bands(data_in = vslo, func_aggr = "sum")
 vdif_band <- f_elev_bands(data_in = vdif, func_aggr = "sum")
 vdis_band <- f_elev_bands(data_in = vdis, func_aggr = "sum")
 
-plot_test <- vdis_band
+plot_test <- vmea_band
 
 x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
 x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
@@ -948,12 +956,12 @@ x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 my_col <- colorRampPalette(c("white", viridis(9, direction = 1)[c(3,4)], "cadetblue3", "grey80",
                              "yellow2","gold", "orange2", "orangered2"))(200)
 
-n_max <- round(abs(max_na(plot_test[, ])) / (max_na(plot_test[, ]) + abs(min_na(plot_test[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
-cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
-my_col <- c(cols_min, cols_max)
+# n_max <- round(abs(max_na(plot_test[, ])) / (max_na(plot_test[, ]) + abs(min_na(plot_test[, ]))), digits = 2) * 200
+# n_min <- 200 - n_max
+# 
+# cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "grey90"))(n_min)
+# cols_max <- colorRampPalette(c("grey90", "yellow2", "gold", "orange2", "orangered2"))(n_max)
+# my_col <- c(cols_min, cols_max)
 
 my_bre <- seq(min_na(plot_test), max_na(plot_test), length.out = length(my_col)+1)
 
@@ -1014,7 +1022,8 @@ range(elevs_d)
 # my_elev_bands <- c(seq(100, 780, 20), 1500) #Nahe
 # my_elev_bands <- c(seq(180, 740, 20), 1500) #Lahn
 # my_elev_bands <- c(seq(100, 820, 20), 1500) #Main
-my_elev_bands <- c(seq(250, 3000, 50), 4000) #Basel
+# my_elev_bands <- c(seq(250, 3000, 50), 4000) #Basel
+my_elev_bands <- c(seq(400, 3000, 50), 4000) #Diepoldsau
 
 #Syntetic meta data info for grid points to use alptempr functions
 HS_amount <- length(which(my_elev_bands[-length(my_elev_bands)] > high_stat_thresh))

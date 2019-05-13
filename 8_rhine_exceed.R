@@ -7,18 +7,13 @@
 
 #parameter----
 
-gaug_exce <- "Maxau" #Diepoldsau_2, Mellingen, Brugg, Basel_Rheinhalle_2, Rockenau, Cochem, Frankfurt, Grolsheim, Kaub, Koeln, Worms, Rockenau,     
-is_grdc_data <- F #usa grdc data selected; gauge_exce ingored
-sta_yea_emd <- 1961
-end_yea_emd <- 2010
+gaug_exce <- "Basel_Rheinhalle_2" #Diepoldsau_2, Mellingen, Brugg, Basel_Rheinhalle_2, Rockenau, Cochem, Kalkofen, Frankfurt, Grolsheim, Koeln, Kaub, Worms     
+is_grdc_data <- T #usa grdc data selected; gauge_exce ingored
+sta_yea_emd <- 1869
+end_yea_emd <- 2012
 quants <- seq(0.99, 0.01, by = -0.01)
 quant_method_val <- "empirical" #empirical, gev, gpd
-quant_method_slo <- "gpd" #empirical, gev, gpd
-
-
-# stat_sel <-  "Frankfurt"
-# dis_length <- dis$date[max(which(!is.na(dis[, which(colnames(dis) == stat_sel)])))]
-# dis_length
+quant_method_slo <- "empirical" #empirical, gev, gpd
 
 #quan_cal----
 

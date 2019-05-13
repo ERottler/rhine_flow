@@ -6,12 +6,12 @@
 ###
 
 #parameter----
-vari_sel <- "tem0" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
-stat_sel <- "Hohenpeissenberg" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901), BER (1864), BAS (1864), DZUG (1901), SMA, Hohenpeissenberg
+vari_sel <- "grdc" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
+stat_sel <- "SMA" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901), BER (1864), BAS (1864), DZUG (1901), SMA, EIN, Hohenpeissenberg
 sta_yea_emd <- 1869
 end_yea_emd <- 2012
 window_width <- 30 
-do_ma_emd <- T # do moving average
+do_ma_emd <- F # do moving average
 do_na_fil_emd <- T
 do_scale_emd <- T
 do_emd <- T
@@ -20,7 +20,9 @@ my_noise_strength <- 0.5
 do_fft <- F
 smooth_par <- 10
 do_loess <- F
-loess_par <- 1
+my_span <- 0.90
+my_poly_degree <- 1
+rain_thres <- 2
 
 #CEEMDAN_calc----
 
@@ -64,6 +66,96 @@ if(vari_sel == "tem0"){
   
 }
 
+if(vari_sel == "rain"){
+  
+  if(stat_sel == "BER"){# Bern
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order64387/order_64387_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           BER = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$values[which(dat_annu$BER <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "BAS"){# Basel / Binningen
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           BAS = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$BAS[which(data_emd$BAS <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "SMA"){# Zuerich
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order64389/order_64389_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           SMA = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$SMA[which(data_emd$SMA <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "Freudenstadt_Kniebis"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-05_17_38/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           Freudenstadt_Kniebis = data_emd$WERT)
+    
+    #Only rainy days
+    data_emd$Freudenstadt_Kniebis[which(data_emd$Freudenstadt_Kniebis <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "Karlsruhe"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-05_18_04/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           Karlsruhe = data_emd$WERT)
+    
+    #Only rainy days
+    data_emd$Karlsruhe[which(data_emd$Karlsruhe <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "Hohenpeissenberg"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-05_18_09/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           Hohenpeissenberg = data_emd$WERT)
+    
+    #Only rainy days
+    data_emd$Hohenpeissenberg[which(data_emd$Hohenpeissenberg <= rain_thres)] <- NA
+    
+    #length(which(data_emd$Hohenpeissenberg[which(format(data_emd$date, '%Y') == 1879)] == 0))
+    
+  }
+  
+  if(stat_sel == "Frankfurt_AM"){
+    
+    data_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-06_14_16/RS_MN006.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$ZEITSTEMPEL, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           Frankfurt_AM = data_emd$WERT)
+    
+    #Only rainy days
+    data_emd$Frankfurt_AM[which(data_emd$Frankfurt_AM <= rain_thres)] <- NA
+    
+  }
+  
+}
+
 if(vari_sel == "disc"){
   
   load(paste0(base_dir, "data/bafu/dis_new.RData")); dis <- dis_new; rm(dis_new)
@@ -72,6 +164,80 @@ if(vari_sel == "disc"){
 }
 
 if(vari_sel == "snow"){
+  
+  if(stat_sel == "BER"){# Bern / Zollikofen
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66632/order_66632_data.txt"), sep = ";", skip = 2, header = T)
+    temp_emd <- temp_emd[which(temp_emd$stn == "BER"),]
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           BER  = temp_emd$hto000d0)
+    
+    if(is.factor(data_emd$BER)){
+      data_emd$BER <-  as.numeric(as.character(data_emd$BER))
+    }
+    
+  }
+  
+  if(stat_sel == "DAV"){# Davos
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66632/order_66632_data.txt"), sep = ";", 
+                           skip = 2, header = T, na.strings = "-")
+    temp_emd <- temp_emd[which(temp_emd$stn == "DAV"),]
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           DAV  = temp_emd$hto000d0)
+    
+    if(is.factor(data_emd$DAV)){
+      data_emd$DAV <-  as.numeric(as.character(data_emd$DAV))
+    }
+
+  }
+  
+  if(stat_sel == "EIN"){# Einsiedeln
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66635/order_66635_data.txt"), sep = ";", 
+                           skip = 2, header = T, na.strings = "-")
+    temp_emd <- temp_emd[which(temp_emd$stn == "EIN"),]
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           EIN  = temp_emd$hto000d0)
+    
+    if(is.factor(data_emd$EIN)){
+      data_emd$EIN <-  as.numeric(as.character(data_emd$EIN))
+    }
+    
+  }
+  
+  if(stat_sel == "SMA"){# Zuerich / Fluntern
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66635/order_66635_data.txt"), sep = ";", 
+                           skip = 2, header = T, na.strings = "-")
+    temp_emd <- temp_emd[which(temp_emd$stn == "SMA"),]
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           SMA  = temp_emd$hto000d0)
+    
+    if(is.factor(data_emd$SMA)){
+      data_emd$SMA <-  as.numeric(as.character(data_emd$SMA))
+    }
+    
+  }
+  
+  if(stat_sel == "BAS"){# Basel / Binningen
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66635/order_66635_data.txt"), sep = ";", 
+                           skip = 2, header = T, na.strings = "-")
+    temp_emd <- temp_emd[which(temp_emd$stn == "BAS"),]
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           BAS  = temp_emd$hto000d0)
+    
+    if(is.factor(data_emd$BAS)){
+      data_emd$BAS <-  as.numeric(as.character(data_emd$BAS))
+    }
+    
+  }
   
   if(stat_sel == "DZUG"){# Zugspitze
     
@@ -149,28 +315,54 @@ if(vari_sel == "grdc"){
   sta_day_emd <- paste0(sta_yea_emd, "-01-01")
   end_day_emd <- paste0(end_yea_emd, "-12-31")
   
+  #Fill possible gaps
+  start_date <- as.POSIXct(strptime(sta_day_emd, "%Y-%m-%d", tz="UTC"))
+  end_date   <- as.POSIXct(strptime(end_day_emd, "%Y-%m-%d", tz="UTC"))
+  full_date  <- as.Date(seq(start_date, end_date, by="day"))
+  
+  emd_sel <- data.frame(date  = full_date,
+                        values = with(emd_sel, values[match(as.Date(full_date), as.Date(dates))])
+  )
+  
+  emd_val <- emd_sel$values[which(emd_sel$date == sta_day_emd):which(emd_sel$date == end_day_emd)]
+  emd_dat <- emd_sel$date[which(emd_sel$date == sta_day_emd):which(emd_sel$date == end_day_emd)]
+  emd_sel <- data.frame(dates  = emd_dat,
+                        values = emd_val)
+  
+  
 }else{
   
   sta_day_emd <- paste0(sta_yea_emd, "-01-01")
   end_day_emd <- paste0(end_yea_emd, "-12-31")
+  
+  #Fill possible gaps
+  start_date <- as.POSIXct(strptime(sta_day_emd, "%Y-%m-%d", tz="UTC"))
+  end_date   <- as.POSIXct(strptime(end_day_emd, "%Y-%m-%d", tz="UTC"))
+  full_date  <- as.Date(seq(start_date, end_date, by="day"))
+  
+  data_emd$values <- data_emd[, which(colnames(data_emd) == stat_sel)]
+  data_emd <- data.frame(dates  = full_date,
+                         values = with(data_emd, values[match(as.Date(full_date), as.Date(date))])
+  )
+  
+  sta_day_emd <- paste0(sta_yea_emd, "-01-01")
+  end_day_emd <- paste0(end_yea_emd, "-12-31")
   start_row <- which(data_emd$date == sta_day_emd)
-  emd_val <- data_emd[which(data_emd$date == sta_day_emd):which(data_emd$date == end_day_emd), which(colnames(data_emd) == stat_sel)]
+  emd_val <- data_emd$values[which(data_emd$date == sta_day_emd):which(data_emd$date == end_day_emd)]
   emd_dat <- data_emd$date[which(data_emd$date == sta_day_emd):which(data_emd$date == end_day_emd)]
   emd_sel <- data.frame(dates  = emd_dat,
                         values = emd_val)
   
 }
 
-
-
-#Fill possible gaps
-start_date <- as.POSIXct(strptime(sta_day_emd, "%Y-%m-%d", tz="UTC"))
-end_date   <- as.POSIXct(strptime(end_day_emd, "%Y-%m-%d", tz="UTC"))
-full_date  <- as.Date(seq(start_date, end_date, by="day"))
-
-emd_sel <- data.frame(dates  = full_date,
-                      values = with(emd_sel, values[match(as.Date(full_date), as.Date(dates))])
-)
+# #Fill possible gaps
+# start_date <- as.POSIXct(strptime(sta_day_emd, "%Y-%m-%d", tz="UTC"))
+# end_date   <- as.POSIXct(strptime(end_day_emd, "%Y-%m-%d", tz="UTC"))
+# full_date  <- as.Date(seq(start_date, end_date, by="day"))
+# 
+# emd_sel <- data.frame(dates  = full_date,
+#                        values = with(emd_sel, values[match(as.Date(full_date), as.Date(dates))])
+# )
 
 #Remove 29th of February
 emd_sel <- emd_sel[-which(format(emd_sel$dates, "%m%d") == "0229"),]
@@ -256,7 +448,7 @@ if(do_loess){
   #function to smooth data with FFT
   myLoess <- function(data_in){
     
-    loess_NA_restore(data_in, smoo_val = loess_par)
+    loess_na(data_in, sm_span = my_span, poly_degree = my_poly_degree)
     
   }
   
@@ -267,7 +459,7 @@ if(do_loess){
   }  
   
 }
-#Scale results
+#Center results
 if(do_scale_emd){
   
   # emd_resid <- scale(emd_resid, center = TRUE, scale = FALSE)

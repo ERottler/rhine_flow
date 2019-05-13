@@ -4,6 +4,21 @@
 
 ###
 
+#Local polynomial Regression Fitting with NA-restoring
+loess_na <- function (data_in, sm_span = 0.2, NA_restore = TRUE, poly_degree = 2){
+  
+  NAs <- which(is.na(data_in))
+  data_in_sm <- na.approx(data_in, na.rm = F)
+  x <- 1:length(data_in_sm)
+  smooth_mod <- loess(data_in_sm ~ x, span = sm_span, degree = poly_degree)
+  data_in_sm[which(!is.na(data_in_sm))] <- predict(smooth_mod)
+  if (NA_restore) {
+    data_in_sm[NAs] <- NA
+  }
+  return(data_in_sm)
+}
+
+
 is.even <- function(x) {x %% 2 == 0}
 
 #extract coordinates from polygon
@@ -127,13 +142,14 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     
     f_quan <- function(data_in){
       if((length(which(is.na(data_in))) / length(data_in)) > cover_thresh){#check cover threshold
-        quant_out <- NA}else{
+        quant_out <-rep(NA, length(quant_in))}else{
           if(length(unique(data_in)) <= 1){
-            quant_out <- unique(data_in)
+            quant_out <- rep(unique(data_in), length(quant_in))
           }else{
             quant_out <- quantile(data_in, probs = quant_in, type = 8, na.rm = T)}}
       
-      return(quant_out)
+      return(as.numeric(quant_out))
+      
     }
     
   }
@@ -371,6 +387,7 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
     res <- apply(data_day[,-1], 2, f_min)
     
   }
+  
   if(method_analys == "sens_slope_snow"){
     #Moving average filter
     input_data$ma <- rollapply(data = input_data$values, width = window_width,
@@ -540,7 +557,7 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
         
       }
       
-      res_quant <- apply(data_day[, -1], 2, f_sens_slope)
+      res_quant <- apply(data_day[, -1], 2, f_sens_slope) * 10 # per decade
       
       return(res_quant)
       
@@ -2364,12 +2381,12 @@ ord_day <- function(data_in, date, start_y = start_year, end_y = end_year){
   input_data_full <- data.frame(date = date, value = data_in)
   
   #Clip selected time period
-  input_data <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= start_year, ]
-  input_data <- input_data[as.numeric(format(input_data$date,'%Y')) <= end_year, ]
+  input_data <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= start_y, ]
+  input_data <- input_data[as.numeric(format(input_data$date,'%Y')) <= end_y, ]
   
   #Fill possible gaps
-  start_date <- as.POSIXct(strptime(paste0(start_year,"-01-01"), "%Y-%m-%d", tz="UTC"))
-  end_date   <- as.POSIXct(strptime(paste0(end_year,"-12-31"),   "%Y-%m-%d", tz="UTC"))
+  start_date <- as.POSIXct(strptime(paste0(start_y,"-01-01"), "%Y-%m-%d", tz="UTC"))
+  end_date   <- as.POSIXct(strptime(paste0(end_y,"-12-31"),   "%Y-%m-%d", tz="UTC"))
   full_date  <- seq(start_date, end_date, by="day")
   
   input_data <- data.frame(dates  = full_date,
@@ -2384,11 +2401,11 @@ ord_day <- function(data_in, date, start_y = start_year, end_y = end_year){
   days <- format(days,"%m-%d")
   
   #Order data by day
-  data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+  data_day <-  matrix(NA, nrow = length(start_y:end_y), ncol = 366)
   colnames(data_day) <- c("year", days)
-  data_day[ ,1] <- start_year:end_year
+  data_day[ ,1] <- start_y:end_y
   
-  for(i in 0:(length(start_year:end_year)-1)) {
+  for(i in 0:(length(start_y:end_y)-1)) {
     
     data_day[i+1, 2:366] <- input_data$values[(i*365+1):((i+1)*365)]
     
@@ -2594,11 +2611,190 @@ f_elev_bands <- function(data_in, elev_bands = my_elev_bands,
 
 
 #Logarithmic sequence
-
 logseq <- function(from=1, to=100000, length.out=6, base_sel = 10) {
   # logarithmic spaced sequence
   # blatantly stolen from library("emdbook"), because need only this
   base_sel**seq(log(from, base = base_sel), log(to, base = base_sel), length.out = length.out)
 }
 
-logseq()
+
+#Analysis within-type changes weather types using climate station data
+f_wtc_cli <- function(wtc_data_in, clim_data_in, annu_analy, 
+                      wtc_sel = my_wtc_sel, method_analy){
+  
+  start_date <- as.POSIXct(strptime(start_day, "%Y-%m-%d", tz="UTC"))
+  end_date   <- as.POSIXct(strptime(end_day,   "%Y-%m-%d", tz="UTC"))
+  full_date  <- seq(start_date, end_date, by="day")
+  
+  data_wtc <- data.frame(date = full_date,
+                         value = with(wtc_data_in, wtc_data_in$valu[match(full_date, date)]))
+  
+  data_cli <- data.frame(date = full_date,
+                         value = with(clim_data_in, clim_data_in$valu[match(full_date, date)]))
+  
+  n_wtcs <- length(wtc_sel)
+  n_year <- length(start_year:end_year)
+  
+  
+  f_wtc_annu <- function(input_wtc, input_cli, gwt_sel, my_annu_analy = annu_analy){
+    
+    #Remove 29th of February
+    input_wtc <- input_wtc[-which(format(input_wtc$date, "%m%d") == "0229"),]
+    input_cli <- input_cli[-which(format(input_cli$date, "%m%d") == "0229"),]
+    
+    #Vector with the 365 days of the year
+    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
+    days <- format(days,"%m-%d")
+    
+    #Order data by day
+    data_day_wtc <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    data_day_cli <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    colnames(data_day_wtc) <- c("year", days)
+    colnames(data_day_cli) <- c("year", days)
+    data_day_wtc[ ,1] <- start_year:end_year
+    data_day_cli[ ,1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day_wtc[i+1, 2:366] <- input_wtc$valu[(i*365+1):((i+1)*365)]
+      data_day_cli[i+1, 2:366] <- input_cli$valu[(i*365+1):((i+1)*365)]
+      
+    }
+    
+    wtc_out <- rep(NA, nrow(data_day_cli))
+    
+    for(i in 1:nrow(data_day_cli)){
+      
+      if(my_annu_analy == "mean"){
+        
+        wtc_out[i] <- mea_na(data_day_cli[i, which(data_day_wtc[i, ] == gwt_sel)])
+        
+      }
+      
+      if(my_annu_analy == "sum"){
+        
+        wtc_out[i] <- sum_na(data_day_cli[i, which(data_day_wtc[i, ] == gwt_sel)])
+        
+      }
+      
+    }
+    
+    return(wtc_out)
+    
+  }
+  
+  wtc_out <- matrix(data=rep(NA, n_wtcs*n_year), ncol = n_wtcs)
+  
+  for(i in 1:n_wtcs){
+    
+    wtc_out[, i] <- f_wtc_annu(input_wtc = data_wtc,
+                               input_cli = data_cli,
+                               gwt_sel = i)
+  }
+  
+  if(method_analy == "mean"){
+    
+    wtc_return <- apply(wtc_out, 2, mea_na)
+    
+  }
+  
+  if(method_analy == "sens_slope"){
+    wtc_sens_slope <- function(wtc_data_in, wtc_cover = 0.01){
+      sens_slope(data_in = wtc_data_in, cover_thresh = wtc_cover)
+    }
+    
+    wtc_return <- apply(wtc_out, 2, wtc_sens_slope) * 10 # per decade
+    
+  }
+  
+  
+  return(wtc_return)
+  
+} 
+
+#Analysis frequency and  change in frequency weather types
+f_wtc_fre <- function(wtc_data_in, wtc_sel = my_wtc_sel, method_analy){
+  
+  start_date <- as.POSIXct(strptime(start_day, "%Y-%m-%d", tz="UTC"))
+  end_date   <- as.POSIXct(strptime(end_day,   "%Y-%m-%d", tz="UTC"))
+  full_date  <- seq(start_date, end_date, by="day")
+  
+  data_wtc <- data.frame(date = full_date,
+                         value = with(wtc_data_in, wtc_data_in$valu[match(full_date, date)]))
+  
+  n_wtcs <- length(wtc_sel)
+  n_year <- length(start_year:end_year)
+  
+  f_annu_fre <- function(input_wtc, gwt_sel){
+    
+    #Remove 29th of February
+    input_wtc <- input_wtc[-which(format(input_wtc$date, "%m%d") == "0229"),]
+    
+    #Vector with the 365 days of the year
+    days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
+    days <- format(days,"%m-%d")
+    
+    #Order data by day
+    data_day_wtc <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
+    colnames(data_day_wtc) <- c("year", days)
+    data_day_wtc[ ,1] <- start_year:end_year
+    
+    for(i in 0:(length(start_year:end_year)-1)) {
+      
+      data_day_wtc[i+1, 2:366] <- input_wtc$valu[(i*365+1):((i+1)*365)]
+      
+    }
+    
+    fre_wtc <- rep(NA, nrow(data_day_wtc))
+    
+    for(i in 1:nrow(data_day_wtc)){
+      
+      fre_wtc[i] <-length(which(data_day_wtc[i, ] == gwt_sel))
+      
+    }
+    
+    return(fre_wtc)
+    
+  }
+  
+  wtc_fre <- matrix(data=rep(NA, n_wtcs*n_year), ncol = n_wtcs)
+  
+  k <- 1
+  for(i in wtc_sel){
+    
+    wtc_fre[, k] <- f_annu_fre(input_wtc = data_wtc,
+                               gwt_sel = i)
+    k <- k+1
+  }
+  
+  #plot(wtc_fre[, 24], type = "l")
+  
+  if(method_analy == "mean"){
+    
+    wtc_fre_out <- apply(wtc_fre, 2, mea_na)
+    
+  }
+  
+  if(method_analy == "sens_slope"){
+    
+    f_sens_slope <- function(data_in, cover_thresh = 0.9){
+      
+      if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
+        sens_slo <-  NA
+      }else{
+        time_step <- 1:length(data_in)
+        sens_slo <- as.numeric(zyp.sen(data_in~time_step)$coefficients[2])
+        # sens_slo <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[2])
+      }
+      return(sens_slo)
+    }
+    
+    wtc_fre_out <- apply(wtc_fre, 2, f_sens_slope) * 10 # per decaade
+    
+  }
+  
+  return(wtc_fre_out)
+  
+}
+
+
