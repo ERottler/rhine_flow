@@ -10,7 +10,7 @@
 gaug_exce <- "Basel_Rheinhalle_2" #Diepoldsau_2, Mellingen, Brugg, Basel_Rheinhalle_2, Rockenau, Cochem, Kalkofen, Frankfurt, Grolsheim, Koeln, Kaub, Worms     
 is_grdc_data <- T #usa grdc data selected; gauge_exce ingored
 sta_yea_emd <- 1869
-end_yea_emd <- 2012
+end_yea_emd <- 2016
 quants <- seq(0.99, 0.01, by = -0.01)
 quant_method_val <- "empirical" #empirical, gev, gpd
 quant_method_slo <- "empirical" #empirical, gev, gpd

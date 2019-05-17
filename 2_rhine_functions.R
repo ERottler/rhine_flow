@@ -21,42 +21,6 @@ loess_na <- function (data_in, sm_span = 0.2, NA_restore = TRUE, poly_degree = 2
 
 is.even <- function(x) {x %% 2 == 0}
 
-#extract coordinates from polygon
-extractCoords <- function(sp_df){
-  results <- list()
-  for(i in 1:length(sp_df@polygons[[1]]@Polygons))
-  {
-    results[[i]] <- sp_df@polygons[[1]]@Polygons[[i]]@coords
-  }
-  results <- Reduce(rbind, results)
-  results
-}
-
-#get index in cube from points inside sub-basin
-
-get_cube_index_col <- function(val_in, lons_in = lon2D, col_or_row = "col"){
-  if(col_or_row == "col"){
-    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,1]
-  }
-  
-  if(col_or_row == "row"){
-    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,2]
-  }
-  
-  return(index_out)
-}
-get_cube_index_row <- function(val_in, lons_in = lon2D, col_or_row = "row"){
-  if(col_or_row == "col"){
-    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,1]
-  }
-  
-  if(col_or_row == "row"){
-    index_out <- which(round(lons_in, digits =6) == round(val_in, digits =6), arr.ind = T)[1,2]
-  }
-  
-  return(index_out)
-}
-
 
 #Berry gdp function for parametric quantiles
 GPDquantile <- function(x, probs)
@@ -2372,47 +2336,6 @@ f_tota_prec_slo <- function(k){
             preci_in = precs[ ,k],
             method_analys = "sens_slope",
             temp_thres = -100)
-}
-
-
-#Order data by day
-ord_day <- function(data_in, date, start_y = start_year, end_y = end_year){
-  
-  input_data_full <- data.frame(date = date, value = data_in)
-  
-  #Clip selected time period
-  input_data <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= start_y, ]
-  input_data <- input_data[as.numeric(format(input_data$date,'%Y')) <= end_y, ]
-  
-  #Fill possible gaps
-  start_date <- as.POSIXct(strptime(paste0(start_y,"-01-01"), "%Y-%m-%d", tz="UTC"))
-  end_date   <- as.POSIXct(strptime(paste0(end_y,"-12-31"),   "%Y-%m-%d", tz="UTC"))
-  full_date  <- seq(start_date, end_date, by="day")
-  
-  input_data <- data.frame(dates  = full_date,
-                           values = with(input_data, value[match(as.Date(full_date), as.Date(date))])
-  )
-  
-  #Remove 29th of February
-  input_data <- input_data[-which(format(input_data$date, "%m%d") == "0229"),]
-  
-  #Vector with the 365 days of the year
-  days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
-  days <- format(days,"%m-%d")
-  
-  #Order data by day
-  data_day <-  matrix(NA, nrow = length(start_y:end_y), ncol = 366)
-  colnames(data_day) <- c("year", days)
-  data_day[ ,1] <- start_y:end_y
-  
-  for(i in 0:(length(start_y:end_y)-1)) {
-    
-    data_day[i+1, 2:366] <- input_data$values[(i*365+1):((i+1)*365)]
-    
-  }
-
-  return(data_day)
-  
 }
 
 #Image plot quantile analysis discharge

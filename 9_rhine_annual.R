@@ -11,14 +11,14 @@ vari_annu <- "rain" # disc, rain, tem0, grdc
 stat_annu <- "SMA" # Basel_Rheinhalle_2 (1869), BAS (1864), BER (1864), Cochem (1901), Koeln (1824), Diepoldsau_2,
                                 # Freudenstadt_Kniebis, Karlsruhe (1876), Hohenpeissenberg, Frankfurt_AM, SMA
 sta_yea_ann <- 1869
-end_yea_ann <- 2012
+end_yea_ann <- 2016
 my_break_day <- 0  # 1-Oct: 274 (Switzerland), 1-Nov: 305 (Germany)
 quants <- seq(0.01, 0.99, by = 0.01)
 quant_method <- "gpd" #empirical, gev, gpd
 rain_thres <- 2 #threshold rainy day (below or equal set to NA)
 my_cover_threshold <- 0.9999
 do_emd <- T
-my_enseble_size <- 2000
+my_enseble_size <- 10000
 my_noise_strength <- 0.5
 do_fft <- F
 smooth_par <- 10

@@ -6,16 +6,16 @@
 ###
 
 #parameter----
-vari_sel <- "grdc" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
+vari_sel <- "rain" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
 stat_sel <- "SMA" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901), BER (1864), BAS (1864), DZUG (1901), SMA, EIN, Hohenpeissenberg
 sta_yea_emd <- 1869
-end_yea_emd <- 2012
-window_width <- 30 
-do_ma_emd <- F # do moving average
+end_yea_emd <- 2016
+window_width <- 90 
+do_ma_emd <- T # do moving average
 do_na_fil_emd <- T
 do_scale_emd <- T
 do_emd <- T
-my_enseble_size <- 2000
+my_enseble_size <- 10000
 my_noise_strength <- 0.5
 do_fft <- F
 smooth_par <- 10
