@@ -10,11 +10,12 @@
 
 #load packages
 # devtools::install_github('ERottler/alptempr')
+# devtools::install_github('ERottler/meltimr')
 pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2, 
                sp, viridis, rgdal, leaflet, ggmap, zoo, zyp, alptempr, lmomco, 
                raster, foreach, rfs, dismo, XML, parallel, doParallel, Lmoments,
                shape, devtools, pbapply, profvis, RColorBrewer, viridis, Rcpp, rEchseSnow,
-               Rlibeemd, xts, emdbook, rfs)
+               Rlibeemd, xts, emdbook, rfs, meltimr)
 
 #set directories
 base_dir <- "u:/RhineFlow/rhine_obs/"
@@ -27,22 +28,6 @@ start_year <- 1950
 end_year <- 2014
 window_width <- 30 
 cover_thres <- 10/60 #minimum fraction of NA values at trend computing
-
-#basin parameter
-do_basin_prep <- T
-do_basin_calc <- T
-do_snow_sim <- T #do snow cover simulation with snowAlone
-do_snow_sim_vis <- T #visualization basin output with snow simulation
-# Rcpp::sourceCpp(paste0(base_dir, "R/rhine_flow/echse_snow.cpp"))
-# Rcpp::Rcpp.package.skeleton(name = "rEchseSnow", cpp_files = paste0(base_dir, "R/rhine_flow/echse_snow.cpp"))
-# install.packages("u:/RhineFlow/rhine_obs/R/rhine_flow/rEchseSnow", repos=NULL, type="source")
-# library(rEchseSnow)
-snow_params <- read.table(paste0(base_dir, "R/rhine_flow/snow_param.txt"), header = T, sep = ";")
-snow_exe <- paste0(base_dir, "snow_sim/snowAlone/snowAlone/Debug/snowAlone.exe")
-basin_sel <- "alp_rhine"        # alp_rhine,  reuss,     aare,  moselle, nahe,      neckar,   main,      lahn, basel
-basin_stn <- "Diepoldsau"       # Diepoldsau, Mellingen, Brugg, Cochem,  Grolsheim, Rockenau, Frankfurt, Kalkofen, Basel_Rheinhalle
-high_stat_thresh <- 1900
-middle_stat_thresh <- 900
 
 #flow parameter
 do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations

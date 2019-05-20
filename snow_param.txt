@@ -1,2 +1,0 @@
-a0;a1;kSatSnow;densDrySnow;specCapRet;emissivitySnowMin;emissivitySnowMax;tempAir_crit;albedoMin;albedoMax;agingRate_tAirPos;agingRate_tAirNeg;soilDepth;soilDens;soilSpecHeat;weightAirTemp;precipSeconds;tempMaxOff;tempAmpli
-0.002;0.0008;0.00004;450;0.08;0.84;0.99;0.2;0.55;0.88;0.00000111;0.000000462;0.1;1300;2.18;0.5;86400;2;8
