@@ -7,7 +7,8 @@
 
 #parameter----
 vari_sel <- "rain" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
-stat_sel <- "SMA" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901), BER (1864), BAS (1864), DZUG (1901), SMA, EIN, Hohenpeissenberg
+stat_sel <- "SIO" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901)
+#BER, BAS, SMA, CHM, GVE, LUG, NEU, SAM, SIO
 sta_yea_emd <- 1869
 end_yea_emd <- 2016
 window_width <- 90 
@@ -22,7 +23,8 @@ smooth_par <- 10
 do_loess <- F
 my_span <- 0.90
 my_poly_degree <- 1
-rain_thres <- 2
+rain_thres <- -1 #negative values > no threshold applied
+do_mk <- T #do Mann Kendal test
 
 #CEEMDAN_calc----
 
@@ -55,6 +57,66 @@ if(vari_sel == "tem0"){
     
   }
   
+  if(stat_sel == "CHM"){# Chaumont
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order74870/order_74870_data.txt"), sep = ";", skip = 2, header = T,
+                           na.strings = "-")
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           CHM  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "GVE"){# Geneve-Cointrin
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order74871/order_74871_data.txt"), sep = ";", skip = 2, header = T,
+                           na.strings = "-")
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           GVE  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "LUG"){# Lugano
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order74872/order_74872_data.txt"), sep = ";", skip = 2, header = T,
+                           na.strings = "-")
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           LUG  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "NEU"){# Neuchatel
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order74873/order_74873_data.txt"), sep = ";", skip = 2, header = T,
+                           na.strings = "-")
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           NEU  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "SAM"){# Samedan
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order74874/order_74874_data.txt"), sep = ";", skip = 2, header = T,
+                           na.strings = "-")
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           SAM  = temp_emd$ths200d0)
+    
+  }
+  
+  if(stat_sel == "SIO"){# Sion
+    
+    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order74875/order_74875_data.txt"), sep = ";", skip = 2, header = T,
+                           na.strings = "-")
+    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date = temp_emd$date,
+                           SIO  = temp_emd$ths200d0)
+    
+  }
+  
   if(stat_sel == "Hohenpeissenberg"){
     
     temp_emd <- read.table(paste0(base_dir, "data/dwd_data/cdc_download_2018-12-06_11_13/TMK_MN004.txt"), sep = ";", skip = 0, header = T, na.strings = c("-"))
@@ -76,7 +138,7 @@ if(vari_sel == "rain"){
                            BER = data_emd$rhs150d0)
     
     #Only rainy days
-    data_emd$values[which(dat_annu$BER <= rain_thres)] <- NA
+    data_emd$BER[which(data_emd$BER <= rain_thres)] <- NA
     
   }
   
@@ -101,6 +163,78 @@ if(vari_sel == "rain"){
     
     #Only rainy days
     data_emd$SMA[which(data_emd$SMA <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "CHM"){# Chaumont
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order74870/order_74870_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           CHM = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$CHM[which(data_emd$CHM <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "GVE"){# Geneve-Cointrin
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order74871/order_74871_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           GVE = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$GVE[which(data_emd$GVE <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "LUG"){# Lugano
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order74872/order_74872_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           LUG = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$LUG[which(data_emd$LUG <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "NEU"){# Neuchatel
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order74873/order_74873_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           NEU = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$NEU[which(data_emd$NEU <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "SAM"){# Samedan
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order74874/order_74874_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           SAM = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$SAM[which(data_emd$SAM <= rain_thres)] <- NA
+    
+  }
+  
+  if(stat_sel == "SIO"){# Sion
+    
+    data_emd <- read.table(paste0(base_dir, "data/idaweb/order74875/order_74875_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
+    data_emd$date <- as.Date(strptime(data_emd$time, "%Y%m%d", tz="UTC"))
+    data_emd <- data.frame(date   = data_emd$date,
+                           SIO = data_emd$rhs150d0)
+    
+    #Only rainy days
+    data_emd$SIO[which(data_emd$SIO <= rain_thres)] <- NA
     
   }
   
@@ -459,6 +593,34 @@ if(do_loess){
   }  
   
 }
+
+if(do_mk){
+    
+  f_mk <- function(data_in){
+      
+    cover_thresh = 0.9
+    
+    if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
+        mann_ken <-  NA
+      }else{
+        mann_ken <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[6])
+      }
+      return(mann_ken)
+    }
+  
+  emd_mk <- foreach::foreach(i = 1:ncol(emd_day), .combine = 'cbind') %dopar% {
+    
+    f_mk(emd_day[, i])
+    
+  } 
+  
+  emd_mk <- as.vector(emd_mk)
+  
+  # plot(emd_mk)
+  # abline(h = 0.05)
+  
+}
+
 #Center results
 if(do_scale_emd){
   

@@ -18,7 +18,7 @@ pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2,
                Rlibeemd, xts, emdbook, rfs, meltimr)
 
 #set directories
-base_dir <- "u:/RhineFlow/rhine_obs/"
+base_dir <- "U:/RhineFlow/rhine_obs/"
 # file_dir <- "e:/mhm_data/04_Daten/lobith_6435060/input/"
 file_dir <- "d:/nrc_user/rottler/toErwin1/6435060/"
 # file_dir <- "D:/nrc_data/01_Data localized (area specific)/Germany/E-OBS Daten Rhein Berry Boessenkool/RhineFloodSeasonality(data mHM)/04_Daten/lobith_6435060/input/" #location data files
@@ -60,32 +60,67 @@ wt_slo <-  "fixed" #fixed, flexi
 source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
 
 
+emd_rain_sion <- emd_resid
+emd_mk_rain_sion <- emd_mk
 
+qannu_rain_sion <- qannu_resid
+qannu_mk_rain_sion <- qannu_mk
 
+load("u:/RhineFlow/rhine_obs/manus/figures/riv_flow_new.Rdata")
 
-# load("u:/RhineFlow/rhine_obs/manus/figures/riv_flow_new.Rdata")
-# 
-# save(qvalu_wass, qvslo_wass,
-#      qvalu_base, qvslo_base,
-#      qvalu_koel, qvslo_koel,
-#      qvalu_wuer, qvslo_wuer,
-#      emd_disc_wass, emd_disc_base, emd_disc_koel, emd_disc_wuer,
-#      qannu_wass, qannu_base, qannu_koel, qannu_wuer,
-#      emd_temp_bern, emd_temp_base, emd_temp_zuer,
-#      emd_rain_bern, emd_rain_base, emd_rain_zuer,
-#      qannu_temp_bern, qannu_temp_base, qannu_temp_zuer,
-#      qannu_rain_bern, qannu_rain_base, qannu_rain_zuer,
-#      qannu_wass_spr, qannu_wass_sum, qannu_wass_aut, qannu_wass_win,
-#      qannu_base_spr, qannu_base_sum, qannu_base_aut, qannu_base_win,
-#      qannu_koel_spr, qannu_koel_sum, qannu_koel_aut, qannu_koel_win,
-#      qannu_wuer_spr, qannu_wuer_sum, qannu_wuer_aut, qannu_wuer_win,
-#      qannu_rain_bern_spr, qannu_rain_bern_sum, qannu_rain_bern_aut, qannu_rain_bern_win,
-#      qannu_rain_base_spr, qannu_rain_base_sum, qannu_rain_base_aut, qannu_rain_base_win,
-#      qannu_rain_zuer_spr, qannu_rain_zuer_sum, qannu_rain_zuer_aut, qannu_rain_zuer_win,
-#      emd_day_wass, emd_day_wass_ori, sta_yea_emd, end_yea_emd,
-#      sta_yea_ann, end_yea_ann,
-#      file = "u:/RhineFlow/rhine_obs/manus/figures/riv_flow_new.Rdata")
-# 
+save(qvalu_wass, qvslo_wass,
+     qvalu_base, qvslo_base,
+     qvalu_koel, qvslo_koel,
+     qvalu_wuer, qvslo_wuer,
+     emd_disc_wass, emd_disc_base, emd_disc_koel, emd_disc_wuer,
+     qannu_wass, qannu_base, qannu_koel, qannu_wuer,
+     emd_temp_bern, emd_temp_base, emd_temp_zuer,
+     emd_temp_chau, emd_temp_gene, emd_temp_luga,
+     emd_temp_neuc, emd_temp_same, emd_temp_sion,
+     emd_mk_temp_chau, emd_mk_temp_gene, emd_mk_temp_luga,
+     emd_mk_temp_neuc, emd_mk_temp_same, emd_mk_temp_sion,
+     emd_rain_chau, emd_rain_gene, emd_rain_luga,
+     emd_rain_neuc, emd_rain_same, emd_rain_sion,
+     emd_mk_rain_chau, emd_mk_rain_gene, emd_mk_rain_luga,
+     emd_mk_rain_neuc, emd_mk_rain_same, emd_mk_rain_sion,
+     qannu_temp_chau, qannu_temp_gene, qannu_temp_luga,
+     qannu_temp_neuc, qannu_temp_same, qannu_temp_sion,
+     qannu_mk_temp_chau, qannu_mk_temp_gene, qannu_mk_temp_luga,
+     qannu_mk_temp_neuc, qannu_mk_temp_same, qannu_mk_temp_sion,
+     qannu_rain_chau, qannu_rain_gene, qannu_rain_luga,
+     qannu_rain_neuc, qannu_rain_same, qannu_rain_sion,
+     qannu_mk_rain_chau, qannu_mk_rain_gene, qannu_mk_rain_luga,
+     qannu_mk_rain_neuc, qannu_mk_rain_same, qannu_mk_rain_sion,
+     
+     emd_rain_bern, emd_rain_base, emd_rain_zuer,
+     qannu_temp_bern, qannu_temp_base, qannu_temp_zuer,
+     qannu_rain_bern, qannu_rain_base, qannu_rain_zuer,
+     qannu_wass_spr, qannu_wass_sum, qannu_wass_aut, qannu_wass_win,
+     qannu_base_spr, qannu_base_sum, qannu_base_aut, qannu_base_win,
+     qannu_koel_spr, qannu_koel_sum, qannu_koel_aut, qannu_koel_win,
+     qannu_wuer_spr, qannu_wuer_sum, qannu_wuer_aut, qannu_wuer_win,
+     qannu_rain_bern_spr, qannu_rain_bern_sum, qannu_rain_bern_aut, qannu_rain_bern_win,
+     qannu_rain_base_spr, qannu_rain_base_sum, qannu_rain_base_aut, qannu_rain_base_win,
+     qannu_rain_zuer_spr, qannu_rain_zuer_sum, qannu_rain_zuer_aut, qannu_rain_zuer_win,
+     emd_day_wass, emd_day_base, emd_day_koel, emd_day_wuer,
+     emd_day_wass_ori, emd_day_koel_ori, sta_yea_emd, end_yea_emd,
+     sta_yea_ann, end_yea_ann,
+     emd_mk_wass, emd_mk_base, emd_mk_koel, emd_mk_wuer, 
+     qannu_mk_wass, qannu_mk_base, qannu_mk_koel, qannu_mk_wuer,
+     emd_mk_temp_bern, emd_mk_temp_base, emd_mk_temp_zuer,
+     emd_mk_rain_bern, emd_mk_rain_base, emd_mk_rain_zuer,
+     qannu_mk_temp_bern, qannu_mk_temp_base, qannu_mk_temp_zuer,
+     qannu_mk_rain_bern, qannu_mk_rain_base, qannu_mk_rain_zuer,
+     qannu_mk_wass_spr, qannu_mk_wass_sum, qannu_mk_wass_aut, qannu_mk_wass_win,
+     qannu_mk_base_spr, qannu_mk_base_sum, qannu_mk_base_aut, qannu_mk_base_win,
+     qannu_mk_koel_spr, qannu_mk_koel_sum, qannu_mk_koel_aut, qannu_mk_koel_win,
+     qannu_mk_wuer_spr, qannu_mk_wuer_sum, qannu_mk_wuer_aut, qannu_mk_wuer_win,
+     qannu_mk_rain_bern_spr, qannu_mk_rain_bern_sum, qannu_mk_rain_bern_aut, qannu_mk_rain_bern_win,
+     qannu_mk_rain_base_spr, qannu_mk_rain_base_sum, qannu_mk_rain_base_aut, qannu_mk_rain_base_win,
+     qannu_mk_rain_zuer_spr, qannu_mk_rain_zuer_sum, qannu_mk_rain_zuer_aut, qannu_mk_rain_zuer_win,
+     
+     file = "u:/RhineFlow/rhine_obs/manus/figures/riv_flow_new.Rdata")
+
 # load("u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/data/rhine_flow_app.RData")
 # 
 # qvalu_long_koel <- qvalu_long

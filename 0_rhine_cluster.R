@@ -1,6 +1,6 @@
 ###
 
-#Rhine river observations - Cluster parallel computing
+#Cluster parallel computing
 #Erwin Rottler, University of Potsdam
 
 ###
@@ -8,7 +8,7 @@
 #stop cluster
 stopCluster(my_clust)
 
-n_cores <- 45 #number of cores used for parallel computing
+n_cores <- 40 #number of cores used for parallel computing
 
 #Make cluster for parallel computing
 my_clust <- makeCluster(n_cores)
