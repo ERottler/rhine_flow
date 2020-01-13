@@ -87,7 +87,6 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   }
 
   #Function for trend calculations
-  
   f_sens_slope <- function(data_in, cover_thresh = 0.9){
     
     if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
@@ -372,17 +371,6 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
       
     }
 
-    f_sens_slope <- function(data_in, cover_thresh = 0.9){
-      
-      if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
-        sens_slo <-  NA
-      }else{
-        time_step <- 1:length(data_in)
-        sens_slo <- as.numeric(zyp.sen(data_in~time_step)$coefficients[2])
-        #sens_slo <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[2])
-      }
-      return(sens_slo)
-    }
     
     res <- apply(data_day[,-1], 2, f_sens_slope) * 10 # cm/dec
     
@@ -2512,6 +2500,17 @@ f_wtc_cli <- function(wtc_data_in, clim_data_in, annu_analy,
   n_wtcs <- length(wtc_sel)
   n_year <- length(start_year:end_year)
   
+  f_sens_slope <- function(data_in, cover_thresh = 0.9){
+    
+    if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
+      sens_slo <-  NA
+    }else{
+      time_step <- 1:length(data_in)
+      sens_slo <- as.numeric(zyp.sen(data_in~time_step)$coefficients[2])
+      #sens_slo <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[2])
+    }
+    return(sens_slo)
+  }
   
   f_wtc_annu <- function(input_wtc, input_cli, gwt_sel, my_annu_analy = annu_analy){
     
@@ -2576,11 +2575,8 @@ f_wtc_cli <- function(wtc_data_in, clim_data_in, annu_analy,
   }
   
   if(method_analy == "sens_slope"){
-    wtc_sens_slope <- function(wtc_data_in, wtc_cover = 0.01){
-      sens_slope(data_in = wtc_data_in, cover_thresh = wtc_cover)
-    }
     
-    wtc_return <- apply(wtc_out, 2, wtc_sens_slope) * 10 # per decade
+    wtc_return <- apply(wtc_out, 2, f_sens_slope) * 10 # per decade
     
   }
   

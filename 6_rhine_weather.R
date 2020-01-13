@@ -1,140 +1,145 @@
 ###
 
-#Rhine flow observations - Analysis weather type data
+#Analysis weather type data
 #Erwin Rottler, University of Potsdam
-#Summer 2018
 
 ###
 
-if(do_wtc_calc){
+
+start_year <- 1960
+end_year <- 2017
+cover_thres <- 0.9
+
   
-  gwt26geo_data <- read.table(paste0(base_dir, "/data/idaweb/order60448/order_60448_data.txt"),
-                              sep = ";", skip = 1, header = TRUE, na.strings = "-")
+#wtc_calc----  
   
-  gwt26msl_data <- read.table(paste0(base_dir, "/data/idaweb/order60446/order_60446_data.txt"),
-                              sep = ";", skip = 1, header = TRUE, na.strings = "-")
+gwt26geo_data <- read.table("U:/RhineFlow/rhine_obs/data/idaweb/order60448/order_60448_data.txt",
+                            sep = ";", skip = 1, header = TRUE, na.strings = "-")
+
+gwt26msl_data <- read.table("U:/RhineFlow/rhine_obs/data/idaweb/order60446/order_60446_data.txt",
+                            sep = ";", skip = 1, header = TRUE, na.strings = "-")
+
+cap27msl_data <- read.table("U:/RhineFlow/rhine_obs/data/idaweb/order60779/order_60779_data.txt",
+                            sep = ";", skip = 1, header = TRUE, na.strings = "-")
+
+ncl40ali_data <- read.table("U:/RhineFlow/rhine_obs/data/WT_Aline/ERA20C_set70_ncl40_slo326_sla4358_seq1.cat",
+                            header = F, na.strings = "-")
+
+gwt26geo_data$time <- as.POSIXct(strptime(gwt26geo_data$time, "%Y%m%d", tz="UTC"))
+gwt26msl_data$time <- as.POSIXct(strptime(gwt26msl_data$time, "%Y%m%d", tz="UTC"))
+cap27msl_data$time <- as.POSIXct(strptime(cap27msl_data$time, "%Y%m%d", tz="UTC"))
+ncl40ali_data$time <- as.POSIXct(strptime(paste(ncl40ali_data$V1,ncl40ali_data$V2, 
+                                                ncl40ali_data$V3),"%Y%m%d", tz="UTC"))
+
+start_day <- paste0(start_year, "-01-01")
+end_day   <- paste0(end_year,   "-12-31")
+
+start_date <- as.POSIXct(strptime(start_day, "%Y-%m-%d", tz="UTC"))
+end_date   <- as.POSIXct(strptime(end_day,   "%Y-%m-%d", tz="UTC"))
+full_date  <- seq(start_date, end_date, by="day")
+
+data_gwt26geo <- data.frame(date = full_date,
+                            value = with(gwt26geo_data, gwt26geo_data$wkwtg3d0[match(full_date, gwt26geo_data$time)]))
+data_gwt26msl <- data.frame(date = full_date,
+                            value = with(gwt26msl_data, gwt26msl_data$wkwtp3d0[match(full_date, gwt26msl_data$time)]))
+data_cap27msl <- data.frame(date = full_date,
+                            value = with(cap27msl_data, cap27msl_data$wkcap3d0[match(full_date, cap27msl_data$time)]))
+data_ncl40ali <- data.frame(date = full_date,
+                            value = with(ncl40ali_data, ncl40ali_data$V5[match(full_date, ncl40ali_data$time)]))
+
+#sub-basin average values for rangking of weather types
+temp_basin <- apply(temps, 1, med_na)
+prec_basin <- apply(precs, 1, mea_na) 
+
+if(wt_clim_data == "temperature"){
+  clim_data <- temp_basin
+}
+if(wt_clim_data == "rainfall"){
+  clim_data <- prec_basin
+}
+
+if(wt_wt_data == "gwt26geo"){
+  wt_data <- data_gwt26geo
+}
+if(wt_wt_data == "gwt26msl"){
+  wt_data <- data_gwt26msl
+}
+if(wt_wt_data == "cap27msl"){
+  wt_data <- data_cap27msl
+}
+if(wt_wt_data == "ncl40ali"){
+  wt_data <- data_ncl40ali
+}
+
+#average value of climate variable for weather types
+wt_clim_med <- gwt_med(dates = full_date, clim_data = clim_data, gwt_data = wt_data$value, numb_wt=wt_num)
+
+if(do_mean_wt_clim){
+  wt_clim_med <- gwt_mea(dates = full_date, clim_data = clim_data, gwt_data = wt_data$value, numb_wt=wt_num)
+}
+
+#get rank out of mean values
+wt_rank <- matrix(NA, ncol = wt_num, nrow = 365)
+for (i in 1:365) {
   
-  cap27msl_data <- read.table(paste0(base_dir, "/data/idaweb/order60779/order_60779_data.txt"),
-                              sep = ";", skip = 1, header = TRUE, na.strings = "-")
+  wt_clim_med_sort <- sort(wt_clim_med[i, ])
   
-  ncl40ali_data <- read.table(paste0(base_dir, "/data/WT_Aline/ERA20C_set70_ncl40_slo326_sla4358_seq1.cat"),
-                              header = F, na.strings = "-")
-  
-  gwt26geo_data$time <- as.POSIXct(strptime(gwt26geo_data$time, "%Y%m%d", tz="UTC"))
-  gwt26msl_data$time <- as.POSIXct(strptime(gwt26msl_data$time, "%Y%m%d", tz="UTC"))
-  cap27msl_data$time <- as.POSIXct(strptime(cap27msl_data$time, "%Y%m%d", tz="UTC"))
-  ncl40ali_data$time <- as.POSIXct(strptime(paste(ncl40ali_data$V1,ncl40ali_data$V2, 
-                                                  ncl40ali_data$V3),"%Y%m%d", tz="UTC"))
-  
-  start_day <- paste0(start_year, "-01-01")
-  end_day   <- paste0(end_year,   "-12-31")
-  
-  start_date <- as.POSIXct(strptime(start_day, "%Y-%m-%d", tz="UTC"))
-  end_date   <- as.POSIXct(strptime(end_day,   "%Y-%m-%d", tz="UTC"))
-  full_date  <- seq(start_date, end_date, by="day")
-  
-  data_gwt26geo <- data.frame(date = full_date,
-                              value = with(gwt26geo_data, gwt26geo_data$wkwtg3d0[match(full_date, gwt26geo_data$time)]))
-  data_gwt26msl <- data.frame(date = full_date,
-                              value = with(gwt26msl_data, gwt26msl_data$wkwtp3d0[match(full_date, gwt26msl_data$time)]))
-  data_cap27msl <- data.frame(date = full_date,
-                              value = with(cap27msl_data, cap27msl_data$wkcap3d0[match(full_date, cap27msl_data$time)]))
-  data_ncl40ali <- data.frame(date = full_date,
-                              value = with(ncl40ali_data, ncl40ali_data$V5[match(full_date, ncl40ali_data$time)]))
-  
-  #sub-basin average values for rangking of weather types
-  temp_basin <- apply(temps, 1, med_na)
-  prec_basin <- apply(precs, 1, mea_na) 
-  
-  if(wt_clim_data == "temperature"){
-    clim_data <- temp_basin
-  }
-  if(wt_clim_data == "rainfall"){
-    clim_data <- prec_basin
-  }
-  
-  if(wt_wt_data == "gwt26geo"){
-    wt_data <- data_gwt26geo
-  }
-  if(wt_wt_data == "gwt26msl"){
-    wt_data <- data_gwt26msl
-  }
-  if(wt_wt_data == "cap27msl"){
-    wt_data <- data_cap27msl
-  }
-  if(wt_wt_data == "ncl40ali"){
-    wt_data <- data_ncl40ali
-  }
-  
-  #average value of climate variable for weather types
-  wt_clim_med <- gwt_med(dates = full_date, clim_data = clim_data, gwt_data = wt_data$value, numb_wt=wt_num)
-  
-  if(do_mean_wt_clim){
-    wt_clim_med <- gwt_mea(dates = full_date, clim_data = clim_data, gwt_data = wt_data$value, numb_wt=wt_num)
-  }
-  
-  #get rank out of mean values
-  wt_rank <- matrix(NA, ncol = wt_num, nrow = 365)
-  for (i in 1:365) {
-    
-    wt_clim_med_sort <- sort(wt_clim_med[i, ])
-    
-    if(length(wt_clim_med_sort) > length(c(wt_low, wt_hig))){
-      gwt_low <- as.numeric(names(wt_clim_med_sort)[wt_low])
-      gwt_hig <- as.numeric(names(wt_clim_med_sort)[(length(wt_clim_med_sort)-(length(wt_hig)-1)) : length(wt_clim_med_sort)])
+  if(length(wt_clim_med_sort) > length(c(wt_low, wt_hig))){
+    gwt_low <- as.numeric(names(wt_clim_med_sort)[wt_low])
+    gwt_hig <- as.numeric(names(wt_clim_med_sort)[(length(wt_clim_med_sort)-(length(wt_hig)-1)) : length(wt_clim_med_sort)])
+  }else{
+    if(is.even(length(wt_clim_med_sort))){
+      gwt_low <- as.numeric(names(wt_clim_med_sort)[1:(length(wt_clim_med_sort) / 2)])
+      gwt_hig <- as.numeric(names(wt_clim_med_sort)[((length(wt_clim_med_sort) / 2) + 1) : length(wt_clim_med_sort)])
     }else{
-      if(is.even(length(wt_clim_med_sort))){
-        gwt_low <- as.numeric(names(wt_clim_med_sort)[1:(length(wt_clim_med_sort) / 2)])
-        gwt_hig <- as.numeric(names(wt_clim_med_sort)[((length(wt_clim_med_sort) / 2) + 1) : length(wt_clim_med_sort)])
-      }else{
-        gwt_low <- as.numeric(names(wt_clim_med_sort)[1:(floor(length(wt_clim_med_sort) / 2))])
-        gwt_hig <- as.numeric(names(wt_clim_med_sort)[ceiling((length(wt_clim_med_sort) / 2)) : length(wt_clim_med_sort)])
-      }
+      gwt_low <- as.numeric(names(wt_clim_med_sort)[1:(floor(length(wt_clim_med_sort) / 2))])
+      gwt_hig <- as.numeric(names(wt_clim_med_sort)[ceiling((length(wt_clim_med_sort) / 2)) : length(wt_clim_med_sort)])
     }
-    wt_rank[i, gwt_low] <-  -1
-    wt_rank[i, gwt_hig] <-   1
-    
   }
-  
-  
-  #Calculate changes in frequencies
-  if(wt_slo == "fixed"){
-    
-    #Determine driving weather types
-    wt_rank_sum <- apply(wt_rank[,], 2, sum_na)
-    
-    names(wt_rank_sum) <- 1:length(wt_rank_sum)
-    
-    wt_rank_sum_sort <- sort(wt_rank_sum)
-    
-    low_wts  <- as.numeric(names(wt_rank_sum_sort)[wt_low])
-    hig_wts  <- as.numeric(names(wt_rank_sum_sort)[wt_hig])
-    
-    wt_hig_slo <- moving_analys(dates = wt_data$date, values = wt_data$value, start_year = start_year,
-                                end_year = end_year, window_width = window_width,
-                                cover_thres = cover_thres, method_analys = "weather_type_window_likeli_sens_slope",
-                                weather_type = hig_wts)*100*10# [%/dec]
-    
-    wt_low_slo <- moving_analys(dates = wt_data$date, values = wt_data$value, start_year = start_year,
-                                end_year = end_year, window_width = window_width,
-                                cover_thres = cover_thres, method_analys = "weather_type_window_likeli_sens_slope",
-                                weather_type = low_wts)*100*10 # [%/dec]
-  }
-  
-  if(wt_slo == "flexi"){
-    
-    wt_hig_slo <- wt_flex_mov_2(wt_data = wt_data$value, wt_rank = wt_rank, date = wt_data$date , hig_low = 1, 
-                                start_year = start_year, end_year = end_year, window_width = window_width, 
-                                cover_thres = cover_thres, wts_numb = length(wt_hig))*100*10 # [%/dec]
-    
-    wt_low_slo <- wt_flex_mov_2(wt_data = wt_data$value, wt_rank = wt_rank, date = wt_data$date , hig_low = -1, 
-                                start_year = start_year, end_year = end_year, window_width = window_width, 
-                                cover_thres = cover_thres, wts_numb = length(wt_low))*100*10 # [%/dec]
-    
-  }
-  
+  wt_rank[i, gwt_low] <-  -1
+  wt_rank[i, gwt_hig] <-   1
   
 }
+
+
+#Calculate changes in frequencies
+if(wt_slo == "fixed"){
+  
+  #Determine driving weather types
+  wt_rank_sum <- apply(wt_rank[,], 2, sum_na)
+  
+  names(wt_rank_sum) <- 1:length(wt_rank_sum)
+  
+  wt_rank_sum_sort <- sort(wt_rank_sum)
+  
+  low_wts  <- as.numeric(names(wt_rank_sum_sort)[wt_low])
+  hig_wts  <- as.numeric(names(wt_rank_sum_sort)[wt_hig])
+  
+  wt_hig_slo <- moving_analys(dates = wt_data$date, values = wt_data$value, start_year = start_year,
+                              end_year = end_year, window_width = window_width,
+                              cover_thres = cover_thres, method_analys = "weather_type_window_likeli_sens_slope",
+                              weather_type = hig_wts)*100*10# [%/dec]
+  
+  wt_low_slo <- moving_analys(dates = wt_data$date, values = wt_data$value, start_year = start_year,
+                              end_year = end_year, window_width = window_width,
+                              cover_thres = cover_thres, method_analys = "weather_type_window_likeli_sens_slope",
+                              weather_type = low_wts)*100*10 # [%/dec]
+}
+
+if(wt_slo == "flexi"){
+  
+  wt_hig_slo <- wt_flex_mov_2(wt_data = wt_data$value, wt_rank = wt_rank, date = wt_data$date , hig_low = 1, 
+                              start_year = start_year, end_year = end_year, window_width = window_width, 
+                              cover_thres = cover_thres, wts_numb = length(wt_hig))*100*10 # [%/dec]
+  
+  wt_low_slo <- wt_flex_mov_2(wt_data = wt_data$value, wt_rank = wt_rank, date = wt_data$date , hig_low = -1, 
+                              start_year = start_year, end_year = end_year, window_width = window_width, 
+                              cover_thres = cover_thres, wts_numb = length(wt_low))*100*10 # [%/dec]
+  
+}
+  
+
+#wtc_visu----
 
 if(do_wtc_visu){
   

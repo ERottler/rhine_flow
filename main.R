@@ -20,7 +20,7 @@ base_dir <- "U:/RhineFlow/rhine_obs/R/rhine_flow/" #path to R-repository
 dir_grdc <- "d:/nrc_user/rottler/GRDC_DAY/" #path to grdc data
 
 #load functions
-source(paste0(base_dir, "2_rhine_functions.R"))
+source(paste0(base_dir, "functions.R"))
 
 
 #cluster----

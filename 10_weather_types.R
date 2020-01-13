@@ -93,27 +93,28 @@ if(cli_sel == "swiss_mix"){
   # Basel / Binningen
   data_cli_bas <- read.table(paste0(base_dir, "data/idaweb/order64388/order_64388_data.txt"), 
                          sep = ";", skip = 2, header = T, na.strings = c("-"))
-  data_cli_bas$date <- as.POSIXct(strptime(data_cli$time, "%Y%m%d", tz="UTC"))
-  data_cli_bas$valu <- data_cli$rhs150d0
+  data_cli_bas$date <- as.POSIXct(strptime(data_cli_bas$time, "%Y%m%d", tz="UTC"))
+  data_cli_bas$valu <- data_cli_bas$rhs150d0
   
   # Bern
   data_cli_ber <- read.table(paste0(base_dir, "data/idaweb/order64387/order_64387_data.txt"), 
                          sep = ";", skip = 2, header = T, na.strings = c("-"))
-  data_cli_ber$date <- as.POSIXct(strptime(data_cli$time, "%Y%m%d", tz="UTC"))
-  data_cli_ber$valu <- data_cli$rhs150d0
+  data_cli_ber$date <- as.POSIXct(strptime(data_cli_ber$time, "%Y%m%d", tz="UTC"))
+  data_cli_ber$valu <- data_cli_ber$rhs150d0
   
   # Zuerich
   data_cli_sma <- read.table(paste0(base_dir, "data/idaweb/order64389/order_64389_data.txt"), 
                          sep = ";", skip = 2, header = T, na.strings = c("-"))
-  data_cli_sma$date <- as.POSIXct(strptime(data_cli$time, "%Y%m%d", tz="UTC"))
-  data_cli_sma$valu <- data_cli$rhs150d0
+  data_cli_sma$date <- as.POSIXct(strptime(data_cli_sma$time, "%Y%m%d", tz="UTC"))
+  data_cli_sma$valu <- data_cli_sma$rhs150d0
   
   #Swiss mix (mean precipitation from three swiss stations)
   data_cli <- data_cli_bas
   rain_swiss <- cbind(data_cli_bas$valu, data_cli_ber$valu, data_cli_sma$valu)
-  data_cli$valu <- apply(test, 1, mea_na)
+  data_cli$valu <- apply(rain_swiss, 1, mea_na)
   
 }
+
 #calc_wtc_cli----
 
 wtc_sum_mea <- f_wtc_cli(wtc_data_in = wtc_data,

@@ -1,10 +1,13 @@
 ###
 
-#Rhine flow observations - Analysis snow data
+#Analysis snow station data
 #Erwin Rottler, University of Potsdam
-#Summer 2018
 
 ###
+
+start_year <- 1981
+end_year <- 2017
+cover_thres <- 0.9
 
 #snow_stat_ana----
 
@@ -73,8 +76,6 @@ spsl_mea <- apply(spsl, 2, mea_na)
 
 
 #snow_stat_vis----
-
-pdf(paste0("u:/RhineFlow/rhine_obs/figs/snow_swiss", ".pdf"), width = 5.09, height = 5)
 
 par(oma=c(0,0,0,0))
 par(family="serif")
@@ -199,9 +200,6 @@ axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tic
 #mtext("Window prob. [%/a]", side = 2, line = 2.2, padj = 1, cex = 0.8)
 mtext("d) Snow window prob. [%/dec]", side = 3, line = 0.1, cex = 0.8)
 box()
-
-
-dev.off()
 
 
 
