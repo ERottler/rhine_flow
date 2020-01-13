@@ -1,18 +1,17 @@
 ###
 
-#Rhine flow observations - Empirical mode decomposition
+#Empirical mode decomposition for selected stations
 #Erwin Rottler, University of Potsdam
 
 ###
 
 #parameter----
-vari_sel <- "rain" # disc, tem0, snow, rain, pres, wpre, rhum, clou, grdc
-stat_sel <- "SIO" # Basel_Rheinhalle_2 (1869), Diepoldsau_2 (1919), Rekingen_2 (1904), Koeln (1824), Cochem (1901)
-#BER, BAS, SMA, CHM, GVE, LUG, NEU, SAM, SIO
+vari_sel <- "grdc" # grdc, tem0, rain
+stat_sel <- "SIO" #Only for temperature and precipitation: BER, BAS, SMA, CHM, GVE, LUG, NEU, SAM, SIO
 sta_yea_emd <- 1869
 end_yea_emd <- 2016
-window_width <- 90 
 do_ma_emd <- T # do moving average
+window_width <- 30 
 do_na_fil_emd <- T
 do_scale_emd <- T
 do_emd <- T
@@ -290,157 +289,6 @@ if(vari_sel == "rain"){
   
 }
 
-if(vari_sel == "disc"){
-  
-  load(paste0(base_dir, "data/bafu/dis_new.RData")); dis <- dis_new; rm(dis_new)
-  data_emd <- dis
-  
-}
-
-if(vari_sel == "snow"){
-  
-  if(stat_sel == "BER"){# Bern / Zollikofen
-    
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66632/order_66632_data.txt"), sep = ";", skip = 2, header = T)
-    temp_emd <- temp_emd[which(temp_emd$stn == "BER"),]
-    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = temp_emd$date,
-                           BER  = temp_emd$hto000d0)
-    
-    if(is.factor(data_emd$BER)){
-      data_emd$BER <-  as.numeric(as.character(data_emd$BER))
-    }
-    
-  }
-  
-  if(stat_sel == "DAV"){# Davos
-    
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66632/order_66632_data.txt"), sep = ";", 
-                           skip = 2, header = T, na.strings = "-")
-    temp_emd <- temp_emd[which(temp_emd$stn == "DAV"),]
-    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = temp_emd$date,
-                           DAV  = temp_emd$hto000d0)
-    
-    if(is.factor(data_emd$DAV)){
-      data_emd$DAV <-  as.numeric(as.character(data_emd$DAV))
-    }
-
-  }
-  
-  if(stat_sel == "EIN"){# Einsiedeln
-    
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66635/order_66635_data.txt"), sep = ";", 
-                           skip = 2, header = T, na.strings = "-")
-    temp_emd <- temp_emd[which(temp_emd$stn == "EIN"),]
-    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = temp_emd$date,
-                           EIN  = temp_emd$hto000d0)
-    
-    if(is.factor(data_emd$EIN)){
-      data_emd$EIN <-  as.numeric(as.character(data_emd$EIN))
-    }
-    
-  }
-  
-  if(stat_sel == "SMA"){# Zuerich / Fluntern
-    
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66635/order_66635_data.txt"), sep = ";", 
-                           skip = 2, header = T, na.strings = "-")
-    temp_emd <- temp_emd[which(temp_emd$stn == "SMA"),]
-    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = temp_emd$date,
-                           SMA  = temp_emd$hto000d0)
-    
-    if(is.factor(data_emd$SMA)){
-      data_emd$SMA <-  as.numeric(as.character(data_emd$SMA))
-    }
-    
-  }
-  
-  if(stat_sel == "BAS"){# Basel / Binningen
-    
-    temp_emd <- read.table(paste0(base_dir, "data/idaweb/order66635/order_66635_data.txt"), sep = ";", 
-                           skip = 2, header = T, na.strings = "-")
-    temp_emd <- temp_emd[which(temp_emd$stn == "BAS"),]
-    temp_emd$date <- as.Date(strptime(temp_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = temp_emd$date,
-                           BAS  = temp_emd$hto000d0)
-    
-    if(is.factor(data_emd$BAS)){
-      data_emd$BAS <-  as.numeric(as.character(data_emd$BAS))
-    }
-    
-  }
-  
-  if(stat_sel == "DZUG"){# Zugspitze
-    
-    snow_emd <- read.table(paste0(base_dir, "data/idaweb/order62735/order_62735_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
-    snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = snow_emd$date,
-                           DZUG = snow_emd$hto000d0)
-    
-  }
-  
-}
-
-if(vari_sel == "pres"){
-  
-  if(stat_sel == "BAS"){# Basel / Binningen
-    
-    snow_emd <- read.table(paste0(base_dir, "data/idaweb/order63476/order_63476_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
-    snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = snow_emd$date,
-                           BAS = snow_emd$prestad0)
-    
-  }
-  
-  if(stat_sel == "BER"){# Basel / Binningen
-    
-    snow_emd <- read.table(paste0(base_dir, "data/idaweb/order63477/order_63477_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
-    snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = snow_emd$date,
-                           BER = snow_emd$prestad0)
-    
-  }
-}
-
-if(vari_sel == "wpre"){
-  
-  if(stat_sel == "BER"){# Basel / Binningen
-    
-    snow_emd <- read.table(paste0(base_dir, "data/idaweb/order63477/order_63477_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
-    snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = snow_emd$date,
-                           BER = snow_emd$pva200d0)
-    
-  }
-}
-
-if(vari_sel == "rhum"){
-  
-  if(stat_sel == "BER"){# Basel / Binningen
-    
-    snow_emd <- read.table(paste0(base_dir, "data/idaweb/order63477/order_63477_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
-    snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = snow_emd$date,
-                           BER = snow_emd$ure200d0)
-    
-  }
-}
-
-if(vari_sel == "clou"){
-  
-  if(stat_sel == "BER"){# Basel / Binningen
-    
-    snow_emd <- read.table(paste0(base_dir, "data/idaweb/order63477/order_63477_data.txt"), sep = ";", skip = 2, header = T, na.strings = c("-"))
-    snow_emd$date <- as.Date(strptime(snow_emd$time, "%Y%m%d", tz="UTC"))
-    data_emd <- data.frame(date = snow_emd$date,
-                           BER = snow_emd$nto000d0)
-    
-  }
-}
-
 if(vari_sel == "grdc"){
   
   data_emd <- grdc_data
@@ -488,15 +336,6 @@ if(vari_sel == "grdc"){
                         values = emd_val)
   
 }
-
-# #Fill possible gaps
-# start_date <- as.POSIXct(strptime(sta_day_emd, "%Y-%m-%d", tz="UTC"))
-# end_date   <- as.POSIXct(strptime(end_day_emd, "%Y-%m-%d", tz="UTC"))
-# full_date  <- as.Date(seq(start_date, end_date, by="day"))
-# 
-# emd_sel <- data.frame(dates  = full_date,
-#                        values = with(emd_sel, values[match(as.Date(full_date), as.Date(dates))])
-# )
 
 #Remove 29th of February
 emd_sel <- emd_sel[-which(format(emd_sel$dates, "%m%d") == "0229"),]
@@ -668,24 +507,14 @@ layout(matrix(c(1,1,1,1,1,1,1,2),
 
 n_max <- round(abs(max_na(emd_resid[, ])) / (max_na(emd_resid[, ]) + abs(min_na(emd_resid[, ]))), digits = 2) * 200
 n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+# cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
+# cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+cols_min <- grDevices::colorRampPalette(c("orangered4", "orangered3", "orange2", "gold2", "yellow2", "white"))(n_min)
 
 cols_emd <- c(cols_min, cols_max)
 
 brea_emd <- c(seq(min_na(emd_resid), max_na(emd_resid),length.out = length(cols_emd)+1))
-
-# cols_emd <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white",
-#                                           "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
-# max_break <- max_na(emd_resid)
-# min_break <- min_na(emd_resid)
-# qua_break <- quantile(emd_resid, probs = 0.5, type = 8, na.rm = T)
-# 
-# breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
-# breaks_2 <- seq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
-# breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + min_na(breaks_1)/100
-# 
-# brea_emd <- c(breaks_1, breaks_2)
 
 
 image(x = 1:365,

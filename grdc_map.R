@@ -71,9 +71,7 @@ grdc_meta$n_years  <- as.numeric(levels(grdc_meta$n_years))[grdc_meta$n_years]
 
 #map----
 
-
-pal <- colorNumeric(palette = "Reds", domain = grdc_meta$n_years)
-
+# pal <- colorNumeric(palette = "Reds", domain = grdc_meta$n_years)
 pal <- "darkblue"
 
 map <- leaflet(grdc_meta) %>%
@@ -104,11 +102,6 @@ map <- leaflet(grdc_meta) %>%
 map
 
 saveWidget(map, file=paste0("u:/RhineFlow/rhine_obs/grdc_map.html"))
-
-
-
-
-
 
 
 #read_data----
