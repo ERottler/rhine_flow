@@ -1,14 +1,12 @@
 ###
 
-#Rhine river observations - Main file
+#River flow analysis - Main file
 #Erwin Rottler, University of Potsdam
-#Summer 2018
 
 ###
 
 #settings----
 
-#load packages
 # devtools::install_github('ERottler/alptempr')
 # devtools::install_github('ERottler/meltimr')
 pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2, 
@@ -18,16 +16,25 @@ pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2,
                Rlibeemd, xts, emdbook, rfs, meltimr)
 
 #set directories
-base_dir <- "U:/RhineFlow/rhine_obs/"
-# file_dir <- "e:/mhm_data/04_Daten/lobith_6435060/input/"
-# file_dir <- "d:/nrc_user/rottler/toErwin1/6435060/"
-# file_dir <- "D:/nrc_data/01_Data localized (area specific)/Germany/E-OBS Daten Rhein Berry Boessenkool/RhineFloodSeasonality(data mHM)/04_Daten/lobith_6435060/input/" #location data files
+base_dir <- "U:/RhineFlow/rhine_obs/R/rhine_flow/" #path to R-repository
+dir_grdc <- "d:/nrc_user/rottler/GRDC_DAY/" #path to grdc data
 
-#general parameter
-# start_year <- 1950
-# end_year <- 2014
-# window_width <- 30 
-# cover_thres <- 10/60 #minimum fraction of NA values at trend computing
+#load functions
+source(paste0(base_dir, "2_rhine_functions.R"))
+
+
+#read_grdc_file----
+
+grdc_data <- read_grdc(paste0(dir_grdc, "6935051_Q_Day.Cmd.txt"))
+
+# 6343100_Q_Day.Cmd.txt Wasserburg (Inn)
+# 6935051_Q_Day.Cmd.txt Basel Rheinhalle (Rhine)
+# 6335060_Q_Day.Cmd.txt Koeln (Rhine)
+# 6335500_Q_Day.Cmd.txt Würzburg
+
+
+
+
 
 #flow parameter
 # do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations
@@ -55,10 +62,7 @@ base_dir <- "U:/RhineFlow/rhine_obs/"
 # wt_hig <- 25:26 #selected high weather types for trend analysis
 # wt_slo <-  "fixed" #fixed, flexi
 
-
-#load functions
-source(paste0(base_dir, "R/rhine_flow/2_rhine_functions.R"))
-
+#save_results----
 
 emd_rain_sion <- emd_resid
 emd_mk_rain_sion <- emd_mk

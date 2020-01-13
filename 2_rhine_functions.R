@@ -66,7 +66,7 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   #Order data by day
   data_day <-  matrix(NA, nrow = length(start_year:end_year), ncol = 366)
   colnames(data_day) <- c("year", days)
-  data_day[ ,1] <- start_year:end_year
+  data_day[, 1] <- start_year:end_year
   
   if(break_day > 0){
     
@@ -401,7 +401,9 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   
   if(method_analys == "quantile_prob"){
     
-    f_quant_likelihood <- function(data_in){
+    quant_thres <- f_quan(data_day[, -1])
+      
+    f_quant_prob <- function(data_in){
       if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
         quant_lik <-  NA
       }else{
@@ -416,7 +418,7 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
       return(quant_lik)
     }
     
-    res <- apply(data_day[,-1], 2, f_quant_likelihood)
+    res <- apply(data_day[,-1], 2, f_quant_prob)
     
   }
   
@@ -610,16 +612,17 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   
   if(method_analys == "mov_quant_prob_trend"){
     
-    #Flood yes or no (above or below selected quantile)
-    if(method_quant == "empirical"){
-      quant_thres <- quantile(input_data$values, probs = quant_in, na.rm = T) #selected quantile
-    }
+    # #Flood yes or no (above or below selected quantile)
+    # if(method_quant == "empirical"){
+    #   quant_thres <- quantile(input_data$values, probs = quant_in, na.rm = T) #selected quantile
+    # }
+    # 
+    # if(method_quant == "gev"){
+    #   params <- lmr2par(input_data$values, type = "gev")
+    #   quant_thres <- par2qua(para = params, f = quant_in)
+    # }
     
-    if(method_quant == "gev"){
-      params <- lmr2par(input_data$values, type = "gev")
-      quant_thres <- par2qua(para = params, f = quant_in)
-    }
-    
+    quant_thres <- f_quan(data_day[, -1])
     
     if(above_below_quant == "above"){
       f_floodYN <- function(data_in){ifelse(data_in >= quant_thres, 100, 0)}
