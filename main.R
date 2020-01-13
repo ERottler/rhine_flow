@@ -16,11 +16,11 @@ pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2,
                Rlibeemd, xts, emdbook, rfs, meltimr)
 
 #set directories
-base_dir <- "U:/RhineFlow/rhine_obs/R/rhine_flow/" #path to R-repository
+base_dir <- "U:/RhineFlow/rhine_obs/" #path to R-repository
 dir_grdc <- "d:/nrc_user/rottler/GRDC_DAY/" #path to grdc data
 
 #load functions
-source(paste0(base_dir, "functions.R"))
+source(paste0(base_dir, "R/rhine_flow/functions.R"))
 
 
 #cluster----

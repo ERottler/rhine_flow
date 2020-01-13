@@ -2,7 +2,6 @@
 
 #Rhine river basin flow changes: Shiny app
 #Erwin Rottler, Universtiy of Potsdam
-#February 2019
 
 ###
 
@@ -19,8 +18,8 @@ library(alptempr)
 library(zoo)
 library(emdbook)
 
-# base_dir <- "u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/"
-base_dir  <- "/srv/shiny-server/RhineApp/"
+base_dir <- "u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/"
+# base_dir  <- "/srv/shiny-server/RhineApp/"
 bg_color <- "gray90"
 
 #Load basin boundaries (shapefile delineated beforehand using GIS)
