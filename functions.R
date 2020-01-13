@@ -372,8 +372,20 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
       
     }
 
-    f_sens_slope <- function(data_in){sens_slope(data_in = data_in, cover_thresh = cover_thresh)}
+    f_sens_slope <- function(data_in, cover_thresh = 0.9){
+      
+      if(length(which(is.na(data_in))) / length(data_in) > (1-cover_thresh)){
+        sens_slo <-  NA
+      }else{
+        time_step <- 1:length(data_in)
+        sens_slo <- as.numeric(zyp.sen(data_in~time_step)$coefficients[2])
+        #sens_slo <- as.numeric(zyp.trend.vector(data_in, method = "zhang", conf.intervals = F)[2])
+      }
+      return(sens_slo)
+    }
+    
     res <- apply(data_day[,-1], 2, f_sens_slope) * 10 # cm/dec
+    
     for (i in 1:365) {
       if ((length(which(is.na(data_day[, i + 1])))/nrow(data_day)) < 
           (cover_thresh)) {
@@ -1375,10 +1387,13 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
   }
   
   if (method_analys == "snow_window_prob_slo") {
-    snow_thres <- 0
+   
+     snow_thres <- 0
+     
     f_snowYN <- function(data_in) {
       ifelse(data_in > snow_thres, 100, 0)
     }
+    
     input_data$values <- sapply(input_data$values, f_snowYN)
     input_data$ma <- rollapply(data = input_data$values, 
                                width = window_width, FUN = mea_na_thres, align = "center", 
@@ -1391,8 +1406,9 @@ dis_ana <- function(disc, date, start_year = 1950, end_year = 2010, method_analy
       data_day[i + 1, 2:366] <- input_data$ma[(i * 365 + 
                                                  1):((i + 1) * 365)]
     }
-    f_sens_slope <- function(data_in){sens_slope(data_in = data_in, cover_thresh = cover_thresh)}
+
     res <- apply(data_day[, -1], 2, f_sens_slope) * 10 # %/dec
+    
     for (i in 1:365) {
       if ((length(which(is.na(data_day[, i + 1])))/nrow(data_day)) < 
           (cover_thresh)) {

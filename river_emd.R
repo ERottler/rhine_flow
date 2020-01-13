@@ -507,8 +507,6 @@ layout(matrix(c(1,1,1,1,1,1,1,2),
 
 n_max <- round(abs(max_na(emd_resid[, ])) / (max_na(emd_resid[, ]) + abs(min_na(emd_resid[, ]))), digits = 2) * 200
 n_min <- 200 - n_max
-# cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-# cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
 cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
 cols_min <- grDevices::colorRampPalette(c("orangered4", "orangered3", "orange2", "gold2", "yellow2", "white"))(n_min)
 

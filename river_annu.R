@@ -1,16 +1,14 @@
 ###
 
-#Rhine flow observations - EMD meets GPD
+#EMD meets quantile estimation on annual basis
 #Erwin Rottler, University of Potsdam
 
 ###
 
 #parameter----
 
-vari_annu <- "rain" # disc, rain, tem0, grdc
-stat_annu <- "SIO" # Basel_Rheinhalle_2 (1869), Cochem (1901), Koeln (1824), Diepoldsau_2,
-                                # Freudenstadt_Kniebis, Karlsruhe (1876), Hohenpeissenberg, Frankfurt_AM,
-#BER, BAS, SMA, CHM, GVE, LUG, NEU, SAM, SIO
+vari_annu <- "grdc" # grdc, rain, tem0
+stat_annu <- "SIO" #BER, BAS, SMA, CHM, GVE, LUG, NEU, SAM, SIO
 sta_yea_ann <- 1869
 end_yea_ann <- 2016
 my_break_day <- 0  # 1-Oct: 274 (Switzerland), 1-Nov: 305 (Germany)
@@ -32,17 +30,6 @@ seas_sel <- "winter" #spring, summer, autumn, winter
 do_mk <- T #do Mann Kendal test
 
 #annual_cal----
-
-if(vari_annu == "disc"){
-  
-  load(paste0(base_dir, "data/bafu/dis_new.RData")) #load discharge data set
-  dis <- dis_new ; dis_new <- NULL
-  
-  cols_sel <- sapply(stat_annu, sel_dis) #columns with selected gauges
-  dat_annu <- data.frame(date   = dis$date,
-                         values = dis[, cols_sel]) #extract selected time series from data frame
-  
-}
 
 if(vari_annu == "rain"){
   
@@ -349,10 +336,7 @@ qannu <- foreach(k = quants, .combine = 'cbind') %dopar%{
 }
 
 
-
-
-#fill NA with mean of day
-if(do_na_fil_emd){
+if(do_na_fil_emd){#fill NA with mean of day
   
   na2mea <- function(data_in){
     
@@ -381,6 +365,7 @@ if(do_fft){
   }
   
 }
+
 if(do_emd){
   
   #Function to do CEEMDAN and return residual
@@ -403,6 +388,7 @@ if(do_emd){
   }
   
 }
+
 if(do_loess){
   
   #function to smooth data with FFT
@@ -449,9 +435,7 @@ if(do_mk){
 
 
 
-#Center data
-# qannu_resid <- scale(qannu_resid, center = T, scale = F)
-
+#Center results
 qannu_resid_meas <- apply(qannu_resid, 2, mea_na)
 
 for (i in 1:ncol(qannu_resid)) {
@@ -471,8 +455,10 @@ layout(matrix(c(1,1,1,1,1,1,1,2),
 
 n_max <- round(abs(alptempr::max_na(qannu_resid[, ])) / (alptempr::max_na(qannu_resid[, ]) + abs(alptempr::min_na(qannu_resid[, ]))), digits = 2) * 200
 n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+# cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
+# cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+cols_min <- grDevices::colorRampPalette(c("orangered4", "orangered3", "orange2", "gold2", "yellow2", "white"))(n_min)
 
 cols_scale <- c(cols_min, cols_max)
 brea_scale <- c(seq(alptempr::min_na(qannu_resid), alptempr::max_na(qannu_resid),length.out = length(cols_scale)+1))
@@ -500,7 +486,7 @@ box()
 
 
 
-#Berry quantiles----
+#berry_quants----
 
 # Usage of quantile estimation method largely depending on sample size
 # Roughly when having more than 100 than empirical is fine

@@ -12,7 +12,7 @@
 pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2, 
                sp, viridis, rgdal, leaflet, ggmap, zoo, zyp, alptempr, lmomco, 
                raster, foreach, rfs, dismo, XML, parallel, doParallel, Lmoments,
-               shape, devtools, pbapply, profvis, RColorBrewer, viridis, Rcpp, rEchseSnow,
+               shape, devtools, pbapply, profvis, RColorBrewer, viridis, Rcpp,
                Rlibeemd, xts, emdbook, rfs, meltimr)
 
 #set directories
@@ -21,6 +21,19 @@ dir_grdc <- "d:/nrc_user/rottler/GRDC_DAY/" #path to grdc data
 
 #load functions
 source(paste0(base_dir, "2_rhine_functions.R"))
+
+
+#cluster----
+
+#stop cluster
+stopCluster(my_clust)
+
+n_cores <- 40 #number of cores used for parallel computing
+
+#Make cluster for parallel computing
+my_clust <- makeCluster(n_cores)
+clusterEvalQ(my_clust, pacman::p_load(zoo, zyp, alptempr, lmomco, ncdf4, sp, raster, betareg, rfs))
+registerDoParallel(my_clust)
 
 
 #read_grdc_file----
