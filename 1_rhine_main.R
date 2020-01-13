@@ -20,40 +20,40 @@ pacman::p_load(ncdf4, ncdf4.helpers, PCICt, dplyr, readr, tidyr, rgeos, ggplot2,
 #set directories
 base_dir <- "U:/RhineFlow/rhine_obs/"
 # file_dir <- "e:/mhm_data/04_Daten/lobith_6435060/input/"
-file_dir <- "d:/nrc_user/rottler/toErwin1/6435060/"
+# file_dir <- "d:/nrc_user/rottler/toErwin1/6435060/"
 # file_dir <- "D:/nrc_data/01_Data localized (area specific)/Germany/E-OBS Daten Rhein Berry Boessenkool/RhineFloodSeasonality(data mHM)/04_Daten/lobith_6435060/input/" #location data files
 
 #general parameter
-start_year <- 1950
-end_year <- 2014
-window_width <- 30 
-cover_thres <- 10/60 #minimum fraction of NA values at trend computing
+# start_year <- 1950
+# end_year <- 2014
+# window_width <- 30 
+# cover_thres <- 10/60 #minimum fraction of NA values at trend computing
 
 #flow parameter
-do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations
-do_prob <- F #do analysis/visualization (moving) probability all quantiles
-do_extr <- F #do analysis/visualization (moving) probability high quantiles only
-do_disco <- F #do analysis/visualization discharge coefficient
-do_regime <- T #regime change along the Rhine river analysis/visualization
-gaug_sel <- c("Diepoldsau", "Brugg", "Mellingen", "Basel_Rheinhalle", "Rockenau", "Worms", 
-              "Frankfurt", "Grolsheim", "Kaub", "Kalkofen", "Cochem", "Koeln")
-quants <- seq(0.01, 0.99, by = 0.01)
-quants_ext <- c(0.850, 0.900, 0.925, 0.950)
+# do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations
+# do_prob <- F #do analysis/visualization (moving) probability all quantiles
+# do_extr <- F #do analysis/visualization (moving) probability high quantiles only
+# do_disco <- F #do analysis/visualization discharge coefficient
+# do_regime <- T #regime change along the Rhine river analysis/visualization
+# gaug_sel <- c("Diepoldsau", "Brugg", "Mellingen", "Basel_Rheinhalle", "Rockenau", "Worms", 
+#               "Frankfurt", "Grolsheim", "Kaub", "Kalkofen", "Cochem", "Koeln")
+# quants <- seq(0.01, 0.99, by = 0.01)
+# quants_ext <- c(0.850, 0.900, 0.925, 0.950)
 
 #snow parameter
-do_snow = F #do analysis snow height measurements selected stations
+# do_snow = F #do analysis snow height measurements selected stations
 
-#weather parameter
-#do basin meteo data preparation!!! (do_basin_prep <- T)
-do_wtc_calc <- T
-do_wtc_visu <- T
-do_mean_wt_clim <- T
-wt_wt_data <- "gwt26msl" #gwt26geo, gwt26msl, cap27msl, ncl40ali
-wt_clim_data <- "rainfall" #temperature, rainfall
-wt_num <- 26 #number of weather type classes in classification
-wt_low <- 1:6 #selected low weather types for trend analysis
-wt_hig <- 25:26 #selected high weather types for trend analysis
-wt_slo <-  "fixed" #fixed, flexi
+# #weather parameter
+# #do basin meteo data preparation!!! (do_basin_prep <- T)
+# do_wtc_calc <- T
+# do_wtc_visu <- T
+# do_mean_wt_clim <- T
+# wt_wt_data <- "gwt26msl" #gwt26geo, gwt26msl, cap27msl, ncl40ali
+# wt_clim_data <- "rainfall" #temperature, rainfall
+# wt_num <- 26 #number of weather type classes in classification
+# wt_low <- 1:6 #selected low weather types for trend analysis
+# wt_hig <- 25:26 #selected high weather types for trend analysis
+# wt_slo <-  "fixed" #fixed, flexi
 
 
 #load functions

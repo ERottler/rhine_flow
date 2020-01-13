@@ -1,6 +1,6 @@
 ###
 
-#Rhine flow observations - Quantile exceedance probabilites for selected gauge
+#Quantile exceedance probabilites for selected gauges
 #Erwin Rottler, University of Potsdam
 
 ###
@@ -14,15 +14,16 @@ end_yea_emd <- 2016
 quants <- seq(0.99, 0.01, by = -0.01)
 quant_method_val <- "empirical" #empirical, gev, gpd
 quant_method_slo <- "empirical" #empirical, gev, gpd
+window_width <- 30 
 
 #quan_cal----
 
-load(paste0(base_dir, "data/bafu/dis_new.RData")) #load discharge data set
-dis <- dis_new ; dis_new <- NULL
-
-cols_sel <- sapply(gaug_exce, sel_dis) #columns with selected gauges
-dis_sel <- dis[, cols_sel] #extract selected time series from data frame
-dat_sel <- dis$date
+# load(paste0(base_dir, "data/bafu/dis_new.RData")) #load discharge data set
+# dis <- dis_new ; dis_new <- NULL
+# 
+# cols_sel <- sapply(gaug_exce, sel_dis) #columns with selected gauges
+# dis_sel <- dis[, cols_sel] #extract selected time series from data frame
+# dat_sel <- dis$date
 
 if(is_grdc_data){
   
