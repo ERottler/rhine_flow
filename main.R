@@ -38,7 +38,7 @@ registerDoParallel(my_clust)
 
 #read_grdc_file----
 
-grdc_data <- read_grdc(paste0(dir_grdc, "6343100_Q_Day.Cmd.txt"))
+grdc_data <- read_grdc(paste0(dir_grdc, "6335500_Q_Day.Cmd.txt"))
 
 # 6343100_Q_Day.Cmd.txt Wasserburg (Inn)
 # 6935051_Q_Day.Cmd.txt Basel Rheinhalle (Rhine)
@@ -53,10 +53,10 @@ emd_mk_rain_sion <- emd_mk
 qannu_rain_sion <- qannu_resid
 qannu_mk_rain_sion <- qannu_mk
 
-qvalu_wass <- qvalu_long
-qvslo_wass <- qvslo_long
+qvalu_wuer <- qvalu_long
+qvslo_wuer <- qvslo_long
 
-load("u:/RhineFlow/rhine_obs/R/riv_flow_new.Rdata")
+load("U:/RhineFlow/rhine_obs/R/figs_manus/riv_flow.Rdata")
 
 save(qvalu_wass, qvslo_wass,
      qvalu_base, qvslo_base,
@@ -109,7 +109,7 @@ save(qvalu_wass, qvslo_wass,
      qannu_mk_rain_base_spr, qannu_mk_rain_base_sum, qannu_mk_rain_base_aut, qannu_mk_rain_base_win,
      qannu_mk_rain_zuer_spr, qannu_mk_rain_zuer_sum, qannu_mk_rain_zuer_aut, qannu_mk_rain_zuer_win,
      
-     file = "u:/RhineFlow/rhine_obs/manus/figures/riv_flow_new.Rdata")
+     file = "U:/RhineFlow/rhine_obs/R/figs_manus/riv_flow.Rdata")
 
 # load("u:/RhineFlow/rhine_obs/R/rhine_flow/RhineApp/data/rhine_flow_app.RData")
 # 
