@@ -38,42 +38,12 @@ registerDoParallel(my_clust)
 
 #read_grdc_file----
 
-grdc_data <- read_grdc(paste0(dir_grdc, "6935051_Q_Day.Cmd.txt"))
+grdc_data <- read_grdc(paste0(dir_grdc, "6343100_Q_Day.Cmd.txt"))
 
 # 6343100_Q_Day.Cmd.txt Wasserburg (Inn)
 # 6935051_Q_Day.Cmd.txt Basel Rheinhalle (Rhine)
 # 6335060_Q_Day.Cmd.txt Koeln (Rhine)
 # 6335500_Q_Day.Cmd.txt Würzburg
-
-
-
-
-
-#flow parameter
-# do_flow <- F #do go into file 3_rhine_flow.R to to discharge calculations
-# do_prob <- F #do analysis/visualization (moving) probability all quantiles
-# do_extr <- F #do analysis/visualization (moving) probability high quantiles only
-# do_disco <- F #do analysis/visualization discharge coefficient
-# do_regime <- T #regime change along the Rhine river analysis/visualization
-# gaug_sel <- c("Diepoldsau", "Brugg", "Mellingen", "Basel_Rheinhalle", "Rockenau", "Worms", 
-#               "Frankfurt", "Grolsheim", "Kaub", "Kalkofen", "Cochem", "Koeln")
-# quants <- seq(0.01, 0.99, by = 0.01)
-# quants_ext <- c(0.850, 0.900, 0.925, 0.950)
-
-#snow parameter
-# do_snow = F #do analysis snow height measurements selected stations
-
-# #weather parameter
-# #do basin meteo data preparation!!! (do_basin_prep <- T)
-# do_wtc_calc <- T
-# do_wtc_visu <- T
-# do_mean_wt_clim <- T
-# wt_wt_data <- "gwt26msl" #gwt26geo, gwt26msl, cap27msl, ncl40ali
-# wt_clim_data <- "rainfall" #temperature, rainfall
-# wt_num <- 26 #number of weather type classes in classification
-# wt_low <- 1:6 #selected low weather types for trend analysis
-# wt_hig <- 25:26 #selected high weather types for trend analysis
-# wt_slo <-  "fixed" #fixed, flexi
 
 #save_results----
 
@@ -83,7 +53,10 @@ emd_mk_rain_sion <- emd_mk
 qannu_rain_sion <- qannu_resid
 qannu_mk_rain_sion <- qannu_mk
 
-load("u:/RhineFlow/rhine_obs/manus/figures/riv_flow_new.Rdata")
+qvalu_wass <- qvalu_long
+qvslo_wass <- qvslo_long
+
+load("u:/RhineFlow/rhine_obs/R/riv_flow_new.Rdata")
 
 save(qvalu_wass, qvslo_wass,
      qvalu_base, qvslo_base,
