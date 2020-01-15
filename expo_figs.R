@@ -5,7 +5,7 @@
 
 ###
 
-pacman::p_load(sp, alptempr, zoo, emdbook, viridis, Rlibeemd, zyp)
+pacman::p_load(sp, alptempr, zoo, emdbook, viridis, Rlibeemd, zyp, meltimr, raster)
 
 load("U:/RhineFlow/rhine_obs/R/figs_manus/riv_flow.Rdata")
 
@@ -20,20 +20,253 @@ y_lab_scal <- 0.40 #Position labels of y-axis scale bar
 lab_months <- c("J","F","M","A","M","J","J","A","S","O","N","D")
 lwd_iso <- 0.7
 cex_iso <- 0.7
-n_iso <- 12
-n_iso_2 <- 6 #number isolines for Discharge 'Changes in seasonality'
-n_iso_3 <- 8 #number isolines for Discharge 'Onset and evolution'
-n_iso_4 <- 8 #number isolines for Temperature
-n_iso_5 <- 6 #number isolines for Rain 'Onset and evolution'
-n_iso_6 <- 8 #number isolines for Rain 'Changes in intensity'
-n_iso_7 <- 8 #number isolines for Seasonal plots
 par(family = "serif")
 lev_sig <- 0.05
 
-#Fig_2----
+#plot_functs----
+
+#Seasonality of river runoff
+plot_quan_doy <- function(qvalu_in){
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(10, 90, by =  10)
+  
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(100)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(100)
+  cols_qvalu <- c(cols_min, cols_max)
+  
+  probs_iso <- c(0.1, 0.5, 0.9)
+  break_quant <- 0.5
+  par(family = "serif")
+  
+  max_break <- max_na(qvalu_in)
+  min_break <- min_na(qvalu_in)
+  qua_break <- quantile(qvalu_in, probs = break_quant, type = 8, na.rm = T)
+  iso_def <- quantile(qvalu_in, probs = probs_iso, type = 8, na.rm = T)
+  
+  breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
+  breaks_2 <- lseq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
+  breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + 0.1
+  
+  breaks_qvalu <- c(breaks_1, breaks_2)
+  
+  y <- 1:ncol(qvalu_in)
+  x <- 1:365
+  
+  par(mar = mar_1)
+  
+  image(x, y, as.matrix(qvalu_in), col = cols_qvalu, breaks = breaks_qvalu, ylab = "",
+        xlab = "", axes = F)
+  
+  axis(2, at = ytiks, labels = ylabs/100, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.05, cex.axis = cex_x_axis)#plot ticks
+  for(i in 1:length(x_axis_lab)){
+    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
+         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
+  }
+  box()
+  
+  contour(x = x,
+          y = y,
+          z = as.matrix(qvalu_in),
+          levels = round(iso_def, 0),
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(mar = mar_2)
+  
+  alptempr::image_scale(as.matrix(qvalu_in), col = cols_qvalu, breaks = breaks_qvalu, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()
+  
+}
+
+#Changes in seasonality of river runoff
+plot_mov_quan <- function(qvslo_in, n_iso = 6){
+  
+  par(family = "serif")
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(10, 90, by =  10)
+  
+  n_max <- round(abs(alptempr::max_na(qvslo_in)) / (alptempr::max_na(qvslo_in) + abs(alptempr::min_na(qvslo_in))), digits = 2) * 200
+  n_min <- 200 - n_max
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(n_min)
+  cols_qvslo <- c(cols_min, cols_max)
+  
+  breaks_qvslo <-  seq(alptempr::min_na(qvslo_in), alptempr::max_na(qvslo_in), length.out = length(cols_qvslo) +1)
+  
+  y <- 1:ncol(qvslo_in)
+  x <- 1:365
+  
+  par(mar = mar_1)
+  
+  image(x, y, as.matrix(qvslo_in), col = cols_qvslo, breaks = breaks_qvslo, ylab = "",
+        xlab = "", axes = F)
+  axis(2, at = ytiks, labels = ylabs/100, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.05, cex.axis = cex_x_axis)#plot ticks
+  for(i in 1:length(x_axis_lab)){
+    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
+         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
+  }
+  box()
+  
+  contour(x = x,
+          y = y,
+          z = as.matrix(qvslo_in),
+          nlevels = n_iso,
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(mar = mar_2)
+  
+  alptempr::image_scale(as.matrix(qvslo_in), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()  
+  
+}
+
+#Onset and evolution of changes
+plot_emd_val <- function(emd_val_in, n_iso = 8, rev_cols = F){
+  
+  par(family = "serif")
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(10, 90, by =  10)
+  
+  par(mar = mar_1)
+  
+  n_max <- round(abs(max_na(emd_val_in[, ])) / (max_na(emd_val_in[, ]) + abs(min_na(emd_val_in[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2", "gold2", "yellow2", "white"))(n_min)
+  if(rev_cols){
+    cols_max <- grDevices::colorRampPalette(c("white", "yellow2", "gold2", "orange2", "orangered4", "red4"))(n_max)
+    cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[c(1, 1:4)], "cadetblue3", "white"))(n_min)
+  }
+  
+  cols_emd <- c(cols_min, cols_max)
+  
+  brea_emd <- c(seq(min_na(emd_val_in), max_na(emd_val_in),length.out = length(cols_emd)+1))
+  
+  image(x = 1:365,
+        y = sta_yea_emd:end_yea_emd,
+        z = t(emd_val_in), 
+        col    = cols_emd, 
+        breaks = brea_emd,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.06)#plot ticks
+  for(i in 1:length(x_axis_lab)){
+    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
+         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
+  }
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  box()
+  
+  contour(x = 1:365,
+          y = sta_yea_ann:end_yea_ann,
+          z = t(emd_val_in),
+          nlevels = n_iso,
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(new = T)
+  
+  par(mar = mar_1)
+  
+  par(xpd=NA)
+  plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_val_in)), xlim = c(1, 365), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
+  points(1:365, rep((nrow(emd_val_in) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_wass > lev_sig, "#FFFFFF00", "black"))
+  par(xpd=F)
+  
+  par(mar = mar_2)
+  
+  image_scale(as.matrix(emd_val_in), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()
+  
+  
+}
+
+#Changes in intesity
+plot_emd_quan <- function(qannu_in, n_iso = 12, rev_cols = F){
+  
+  par(family = "serif")
+  
+  par(mar = mar_1)
+  
+  x_axis_tic <- seq(10, 90, by = 10)
+  n_max <- round(abs(alptempr::max_na(qannu_in[, ])) / (alptempr::max_na(qannu_in[, ]) + abs(alptempr::min_na(qannu_in[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(n_min)
+  if(rev_cols){
+    cols_max <- grDevices::colorRampPalette(c("white", "yellow2", "gold2", "orange2", "orangered4", "red4"))(n_max)
+    cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[c(1, 1:4)], "cadetblue3", "white"))(n_min)
+  }
+  
+  cols_scale <- c(cols_min, cols_max)
+  brea_scale <- c(seq(alptempr::min_na(qannu_in), alptempr::max_na(qannu_in),length.out = length(cols_scale)+1))
+  
+  image(x = 1:99,
+        y = sta_yea_ann:end_yea_ann,
+        z = t(qannu_in), 
+        col    = cols_scale, 
+        breaks = brea_scale,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  box()
+  
+  contour(x = 1:99,
+          y = sta_yea_ann:end_yea_ann,
+          z = t(qannu_in),
+          nlevels = n_iso,
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(new = T)
+  
+  par(mar = mar_1)
+  
+  par(xpd=NA)
+  plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_in)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
+  points(1:99, rep((nrow(qannu_in) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wass > 0.05, "#FFFFFF00", "black"))
+  par(xpd=F)
+  
+  
+  par(mar = mar_2)
+  
+  alptempr::image_scale(as.matrix(qannu_in), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()
+  
+}
+
+
+#Fig_emd_intro----
 
 # pdf("u:/RhineFlow/rhine_obs/manus/figures/Fig2.pdf", width = 8.3, height = 6.5)
-pdf("/home/erwin/ownCloud/RhineFlow/rhine_obs/manus/figures/Fig2.pdf", width = 8.3, height = 7.0)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_emd_intro.pdf", width = 8.3, height = 7.0)
 
 layout(matrix(c(1,2,3,
                 1,2,4), 
@@ -149,10 +382,10 @@ dev.off()
 
 
 
-#Fig_4----
+#Fig_ltc_disc----
 
 # tiff("u:/RhineFlow/rhine_obs/manus/figures/Fig4.tif", width = 16.6, height = 8, units = 'in', res = 800)
-pdf("U:/RhineFlow/rhine_obs/R/figs_manus/Fig4.pdf", width = 16.6, height = 8.0)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_ltc_disc.pdf", width = 16.6, height = 8.0)
 
 
 layout(matrix(c(34,33,33,33,33,
@@ -170,66 +403,6 @@ layout(matrix(c(34,33,33,33,33,
 
 #Plot type 1: Seasonality of river runoff
 
-plot_quan_doy <- function(qvalu_in){
-  
-  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
-  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-  ytiks      <- seq(10, 90, by =  10)
-  ylabs      <- seq(10, 90, by =  10)
-  
-  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(100)
-  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(100)
-  cols_qvalu <- c(cols_min, cols_max)
-  
-  probs_iso <- c(0.1, 0.5, 0.9)
-  break_quant <- 0.5
-  par(family = "serif")
-  
-  max_break <- max_na(qvalu_in)
-  min_break <- min_na(qvalu_in)
-  qua_break <- quantile(qvalu_in, probs = break_quant, type = 8, na.rm = T)
-  iso_def <- quantile(qvalu_in, probs = probs_iso, type = 8, na.rm = T)
-  
-  breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
-  breaks_2 <- lseq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
-  breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + 0.1
-  
-  breaks_qvalu <- c(breaks_1, breaks_2)
-  
-  y <- 1:ncol(qvalu_in)
-  x <- 1:365
-  
-  par(mar = mar_1)
-  
-  image(x, y, as.matrix(qvalu_in), col = cols_qvalu, breaks = breaks_qvalu, ylab = "",
-        xlab = "", axes = F)
-  
-  axis(2, at = ytiks, labels = ylabs/100, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-       col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-  for(i in 1:length(x_axis_lab)){
-    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-  }
-  box()
-  
-  contour(x = x,
-          y = y,
-          z = as.matrix(qvalu_in),
-          levels = round(iso_def, 0),
-          add = T,
-          lwd = lwd_iso,
-          labcex = cex_iso)
-  
-  par(mar = mar_2)
-  
-  alptempr::image_scale(as.matrix(qvalu_in), col = cols_qvalu, breaks = breaks_qvalu, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-  
-  box()
-  
-}
-
 plot_quan_doy(qvalu_wass)
 
 plot_quan_doy(qvalu_base)
@@ -241,194 +414,35 @@ plot_quan_doy(qvalu_wuer)
 
 #Plot type 2: Changes in seasonality of river runoff
 
-plot_mov_quan <- function(qvslo_in){
-  
-  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
-  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-  ytiks      <- seq(10, 90, by =  10)
-  ylabs      <- seq(10, 90, by =  10)
-  
-  n_max <- round(abs(alptempr::max_na(qvslo_in)) / (alptempr::max_na(qvslo_in) + abs(alptempr::min_na(qvslo_in))), digits = 2) * 200
-  n_min <- 200 - n_max
-  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
-  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(n_min)
-  cols_qvslo <- c(cols_min, cols_max)
-  
-  breaks_qvslo <-  seq(alptempr::min_na(qvslo_in), alptempr::max_na(qvslo_in), length.out = length(cols_qvslo) +1)
-  
-  y <- 1:ncol(qvslo_in)
-  x <- 1:365
-  
-  par(mar = mar_1)
-  
-  image(x, y, as.matrix(qvslo_in), col = cols_qvslo, breaks = breaks_qvslo, ylab = "",
-        xlab = "", axes = F)
-  axis(2, at = ytiks, labels = ylabs/100, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-       col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-  for(i in 1:length(x_axis_lab)){
-    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-  }
-  box()
-  
-  contour(x = x,
-          y = y,
-          z = as.matrix(qvslo_in),
-          nlevels = n_iso_2,
-          add = T,
-          lwd = lwd_iso,
-          labcex = cex_iso)
-  
-  par(mar = mar_2)
-  
-  alptempr::image_scale(as.matrix(qvslo_in), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-  
-  box()  
-  
-}
+plot_mov_quan(qvslo_wass, n_iso = 6)
 
-plot_mov_quan(qvslo_wass)
+plot_mov_quan(qvslo_base, n_iso = 6)
 
-plot_mov_quan(qvslo_base)
+plot_mov_quan(qvslo_koel, n_iso = 6)
 
-plot_mov_quan(qvslo_koel)
-
-plot_mov_quan(qvslo_wuer)
+plot_mov_quan(qvslo_wuer, n_iso = 6)
 
 
 #Plot type 3: Onset and evolution of changes
 
-plot_emd_val <- function(emd_val_in){
-  
-  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
-  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-  ytiks      <- seq(10, 90, by =  10)
-  ylabs      <- seq(10, 90, by =  10)
-  
-  par(mar = mar_1)
-  
-  n_max <- round(abs(max_na(emd_val_in[, ])) / (max_na(emd_val_in[, ]) + abs(min_na(emd_val_in[, ]))), digits = 2) * 200
-  n_min <- 200 - n_max
-  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
-  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(n_min)
-  
-  cols_emd <- c(cols_min, cols_max)
-  
-  brea_emd <- c(seq(min_na(emd_val_in), max_na(emd_val_in),length.out = length(cols_emd)+1))
-  
-  image(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = t(emd_val_in), 
-        col    = cols_emd, 
-        breaks = brea_emd,
-        ylab = "", xlab = "", axes = F)
-  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-       col = "black", col.axis = "black", tck = -0.06)#plot ticks
-  for(i in 1:length(x_axis_lab)){
-    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-  }
-  axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-  box()
-  
-  contour(x = 1:365,
-          y = sta_yea_ann:end_yea_ann,
-          z = t(emd_val_in),
-          nlevels = n_iso_3,
-          add = T,
-          lwd = lwd_iso,
-          labcex = cex_iso)
-  
-  par(new = T)
-  
-  par(mar = mar_1)
-  
-  par(xpd=NA)
-  plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_val_in)), xlim = c(1, 365), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-  points(1:365, rep((nrow(emd_val_in) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_wass > lev_sig, "#FFFFFF00", "black"))
-  par(xpd=F)
-  
-  par(mar = mar_2)
-  
-  image_scale(as.matrix(emd_val_in), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-  
-  box()
-  
-  
-}
+plot_emd_val(emd_disc_wass, n_iso = 8)
 
-plot_emd_val(emd_disc_wass)
+plot_emd_val(emd_disc_base, n_iso = 8)
 
-plot_emd_val(emd_disc_base)
+plot_emd_val(emd_disc_koel, n_iso = 8)
 
-plot_emd_val(emd_disc_koel)
-
-plot_emd_val(emd_disc_wuer)
+plot_emd_val(emd_disc_wuer, n_iso = 8)
 
 
 #Plot type 3: Onset and evolution of changes
 
-plot_emd_quan <- function(qannu_in){
-  
-  par(mar = mar_1)
-  
-  x_axis_tic <- seq(10, 90, by = 10)
-  n_max <- round(abs(alptempr::max_na(qannu_in[, ])) / (alptempr::max_na(qannu_in[, ]) + abs(alptempr::min_na(qannu_in[, ]))), digits = 2) * 200
-  n_min <- 200 - n_max
-  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
-  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(n_min)
-  
-  cols_scale <- c(cols_min, cols_max)
-  brea_scale <- c(seq(alptempr::min_na(qannu_in), alptempr::max_na(qannu_in),length.out = length(cols_scale)+1))
-  
-  image(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z = t(qannu_in), 
-        col    = cols_scale, 
-        breaks = brea_scale,
-        ylab = "", xlab = "", axes = F)
-  axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-       col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-  axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-  box()
-  
-  contour(x = 1:99,
-          y = sta_yea_ann:end_yea_ann,
-          z = t(qannu_in),
-          nlevels = n_iso,
-          add = T,
-          lwd = lwd_iso,
-          labcex = cex_iso)
-  
-  par(new = T)
-  
-  par(mar = mar_1)
-  
-  par(xpd=NA)
-  plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_in)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-  points(1:99, rep((nrow(qannu_in) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wass > 0.05, "#FFFFFF00", "black"))
-  par(xpd=F)
-  
-  
-  par(mar = mar_2)
-  
-  alptempr::image_scale(as.matrix(qannu_in), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-  
-  box()
-  
-}
+plot_emd_quan(qannu_wass, n_iso = 12, rev_cols = T)
 
-plot_emd_quan(qannu_wass)
+plot_emd_quan(qannu_base, n_iso = 12, rev_cols = T)
 
-plot_emd_quan(qannu_base)
+plot_emd_quan(qannu_koel, n_iso = 12, rev_cols = T)
 
-plot_emd_quan(qannu_koel)
-
-plot_emd_quan(qannu_wuer)
+plot_emd_quan(qannu_wuer, n_iso = 12, rev_cols = T)
 
 
 #Station names
@@ -458,13 +472,10 @@ mtext("Discharge",
 dev.off()
 
 
+#Fig_ltc_tp----
 
-
-#Fig_5----
-
-# pdf("u:/RhineFlow/rhine_obs/manus/figures/Fig5.pdf", width = 16.6, height = 6.14)
 # tiff("u:/RhineFlow/rhine_obs/manus/figures/Fig5.tif", width = 16.6, height = 6.14, units = 'in', res = 800)
-pdf("/home/erwin/ownCloud/RhineFlow/rhine_obs/manus/figures/Fig5.pdf", width = 16.6, height = 6.14)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_ltc_tp.pdf", width = 16.6, height = 6.14)
 
 layout(matrix(c(26,25,25,25,
                 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5,  
@@ -479,673 +490,46 @@ layout(matrix(c(26,25,25,25,
 
 # layout.show(n = 26)
 
-x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 
-ytiks      <- seq(10, 90, by =  10)
-ylabs      <- seq(90, 10, by = -10) 
+#Plot: Emd values temperature
 
-cols_qvalu <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white", 
-                                            "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
+plot_emd_val(emd_temp_bern, rev_cols = T, n_iso = 8)
 
-par(family = "serif")
+plot_emd_val(emd_temp_base, rev_cols = T, n_iso = 8)
 
+plot_emd_val(emd_temp_zuer, rev_cols = T, n_iso = 8)
 
-#Figure 1.1 : Bern CEEMDAN temperature
 
-par(mar = mar_1)
+#Plot: EMD annual quantiles temperature
 
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_bern[, ])) / (max_na(emd_temp_bern[, ]) + abs(min_na(emd_temp_bern[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+plot_emd_quan(qannu_temp_bern, rev_cols = T, n_iso = 8)
 
-cols_emd <- c(cols_min, cols_max)
+plot_emd_quan(qannu_temp_base, rev_cols = T, n_iso = 8)
 
-brea_emd <- c(seq(min_na(emd_temp_bern), max_na(emd_temp_bern),length.out = length(cols_emd)+1))
+plot_emd_quan(qannu_temp_zuer, rev_cols = T, n_iso = 8)
 
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_bern), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) Bern temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
 
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_bern)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
+#Plot: Emd values precipitation
 
-par(new = T)
+plot_emd_val(emd_rain_bern, n_iso = 6)
 
-par(mar = mar_1)
+plot_emd_val(emd_rain_base, n_iso = 6)
 
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_bern)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_bern) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_bern > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
+plot_emd_val(emd_rain_zuer, n_iso = 6)
 
 
-par(mar = mar_2)
+#Plot: EMD annual quantiles precipitation
 
-image_scale(as.matrix(emd_temp_bern), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+plot_emd_quan(qannu_rain_bern, n_iso = 8)
 
-box()
+plot_emd_quan(qannu_rain_base, n_iso = 8)
 
+plot_emd_quan(qannu_rain_zuer, n_iso = 8)
 
-#Figure 2.1: Basel CEEMDAN temperature
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_base[, ])) / (max_na(emd_temp_base[, ]) + abs(min_na(emd_temp_base[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_temp_base), max_na(emd_temp_base),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_base), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("c) Basel temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_base)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_base)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_base) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_base > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_temp_base), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.1 : Zuerich CEEMDAN temperature
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_zuer[, ])) / (max_na(emd_temp_zuer[, ]) + abs(min_na(emd_temp_zuer[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_temp_zuer), max_na(emd_temp_zuer),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_zuer), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("e) Zuerich temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_zuer)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_zuer)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_zuer) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_zuer > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_temp_zuer), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.2: Bern CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_bern[, ])) / (alptempr::max_na(qannu_temp_bern[, ]) + abs(alptempr::min_na(qannu_temp_bern[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_bern), alptempr::max_na(qannu_temp_bern),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_bern), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_bern),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_bern)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_bern) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_bern > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_bern), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.2: Basel CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_base[, ])) / (alptempr::max_na(qannu_temp_base[, ]) + abs(alptempr::min_na(qannu_temp_base[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_base), alptempr::max_na(qannu_temp_base),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_base), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) base precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_base),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_base)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_base) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_base > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_base), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.2: Zuerich CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_zuer[, ])) / (alptempr::max_na(qannu_temp_zuer[, ]) + abs(alptempr::min_na(qannu_temp_zuer[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_zuer), alptempr::max_na(qannu_temp_zuer),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_zuer), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) zuer precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_zuer),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_zuer)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_zuer) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_zuer > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_zuer), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.3 : Bern CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_bern[, ])) / (max_na(emd_rain_bern[, ]) + abs(min_na(emd_rain_bern[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_bern), max_na(emd_rain_bern),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_bern), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) Bern rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_bern)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_bern)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_bern) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_bern > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_bern), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.3 : Basel CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_base[, ])) / (max_na(emd_rain_base[, ]) + abs(min_na(emd_rain_base[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_base), max_na(emd_rain_base),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_base), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) base rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_base)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_base)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_base) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_base > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_base), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.3 : Zuerich CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_zuer[, ])) / (max_na(emd_rain_zuer[, ]) + abs(min_na(emd_rain_zuer[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_zuer), max_na(emd_rain_zuer),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_zuer), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) zuer rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_zuer)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_zuer)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_zuer) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_zuer > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_zuer), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.4: Bern CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_bern[, ])) / (alptempr::max_na(qannu_rain_bern[, ]) + abs(alptempr::min_na(qannu_rain_bern[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_bern), alptempr::max_na(qannu_rain_bern),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_bern), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_bern),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_bern)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_bern) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_bern > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_bern), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.4: Basel CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_base[, ])) / (alptempr::max_na(qannu_rain_base[, ]) + abs(alptempr::min_na(qannu_rain_base[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_base), alptempr::max_na(qannu_rain_base),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_base), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) base precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_base),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_base)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_base) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_base > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_base), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.4: Zuerich CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_zuer[, ])) / (alptempr::max_na(qannu_rain_zuer[, ]) + abs(alptempr::min_na(qannu_rain_zuer[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_zuer), alptempr::max_na(qannu_rain_zuer),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_zuer), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) zuer precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_zuer),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_zuer)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_zuer) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_zuer > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_zuer), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-par(mar = c(0,0,0,0))
 
 #Station names
+
+par(mar = c(0,0,0,0))
 
 plot(1:100, 1:100, axes = F, type = "n", xlab = "", ylab = "")
 mtext("Bern (a)",    side = 2, line = -1.8, cex = cex_header, adj = 0.92)
@@ -1171,10 +555,9 @@ mtext("Precipitation",
 dev.off()
 
 
-#Fig_6----
+#Fig_ltc_disc_seas----
 
-# pdf("u:/RhineFlow/rhine_obs/manus/figures/Fig6.pdf", width = 16.6, height = 8)
-pdf("/home/erwin/ownCloud/RhineFlow/rhine_obs/manus/figures/Fig6.pdf", width = 16.6, height = 8.0)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_ltc_disc_seas.pdf", width = 16.6, height = 8.0)
 
 layout(matrix(c(34,33,33,33,33,
                 34,1,3,5,7, 34,1,3,5,7, 34,1,3,5,7, 34,1,3,5,7, 34,1,3,5,7, 34,1,3,5,7, 34,1,3,5,7, 
@@ -1189,850 +572,55 @@ layout(matrix(c(34,33,33,33,33,
 
 # layout.show(n = 34)
 
-x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+#Quantile change spring
+plot_emd_quan(qannu_wass_spr, n_iso = 8)
 
-ytiks      <- seq(10, 90, by =  10)
-ylabs      <- seq(90, 10, by = -10) 
+plot_emd_quan(qannu_base_spr, n_iso = 8)
 
-cols_qvalu <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white", 
-                                            "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
+plot_emd_quan(qannu_koel_spr, n_iso = 8)
 
-par(family = "serif")
+plot_emd_quan(qannu_wuer_spr, n_iso = 8)
 
 
+#Quantile change summer
+plot_emd_quan(qannu_wass_sum, n_iso = 8)
 
-#Figure 1.1: Wasserburg CEEMDAN discharge quantiles spring
+plot_emd_quan(qannu_base_sum, n_iso = 8)
 
-par(mar = mar_1)
+plot_emd_quan(qannu_koel_sum, n_iso = 8)
 
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wass_spr[, ])) / (alptempr::max_na(qannu_wass_spr[, ]) + abs(alptempr::min_na(qannu_wass_spr[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+plot_emd_quan(qannu_wuer_sum, n_iso = 8)
 
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wass_spr), alptempr::max_na(qannu_wass_spr),length.out = length(cols_scale)+1))
 
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wass_spr), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wass_sprerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
+#Quantile change autumn
+plot_emd_quan(qannu_wass_aut, n_iso = 8)
 
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wass_spr),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
+plot_emd_quan(qannu_base_aut, n_iso = 8)
 
-par(new = T)
+plot_emd_quan(qannu_koel_aut, n_iso = 8)
 
-par(mar = mar_1)
+plot_emd_quan(qannu_wuer_aut, n_iso = 8)
 
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wass_spr)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wass_spr) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wass_spr > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
 
-par(mar = mar_2)
+#Quantile change winter
+plot_emd_quan(qannu_wass_win, n_iso = 8)
 
-alptempr::image_scale(as.matrix(qannu_wass_spr), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+plot_emd_quan(qannu_base_win, n_iso = 8)
 
-box()
+plot_emd_quan(qannu_koel_win, n_iso = 8)
 
+plot_emd_quan(qannu_wuer_win, n_iso = 8)
 
-#Figure 2.1: Basel CEEMDAN discharge quantiles spring
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_base_spr[, ])) / (alptempr::max_na(qannu_base_spr[, ]) + abs(alptempr::min_na(qannu_base_spr[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_base_spr), alptempr::max_na(qannu_base_spr),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_base_spr), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) base_sprerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_base_spr),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_base_spr)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_base_spr) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_base_spr > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_base_spr), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.1: Koeln CEEMDAN discharge quantiles spring
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_koel_spr[, ])) / (alptempr::max_na(qannu_koel_spr[, ]) + abs(alptempr::min_na(qannu_koel_spr[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_koel_spr), alptempr::max_na(qannu_koel_spr),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_koel_spr), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) koel_sprerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_koel_spr),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_koel_spr)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_koel_spr) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_koel_spr > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_koel_spr), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.1: Wuerzburg CEEMDAN discharge quantiles spring
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wuer_spr[, ])) / (alptempr::max_na(qannu_wuer_spr[, ]) + abs(alptempr::min_na(qannu_wuer_spr[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wuer_spr), alptempr::max_na(qannu_wuer_spr),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wuer_spr), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wuer_sprerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wuer_spr),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wuer_spr)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wuer_spr) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wuer_spr > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_wuer_spr), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.2: Wasserburg CEEMDAN discharge quantiles summer
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wass_sum[, ])) / (alptempr::max_na(qannu_wass_sum[, ]) + abs(alptempr::min_na(qannu_wass_sum[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wass_sum), alptempr::max_na(qannu_wass_sum),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wass_sum), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wass_sumerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wass_sum),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wass_sum)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wass_sum) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wass_sum > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_wass_sum), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.2: Basel CEEMDAN discharge quantiles summer
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_base_sum[, ])) / (alptempr::max_na(qannu_base_sum[, ]) + abs(alptempr::min_na(qannu_base_sum[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_base_sum), alptempr::max_na(qannu_base_sum),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_base_sum), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) base_sumerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_base_sum),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_base_sum)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_base_sum) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_base_sum > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_base_sum), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.2: Koeln CEEMDAN discharge quantiles summer
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_koel_sum[, ])) / (alptempr::max_na(qannu_koel_sum[, ]) + abs(alptempr::min_na(qannu_koel_sum[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_koel_sum), alptempr::max_na(qannu_koel_sum),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_koel_sum), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) koel_sumerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_koel_sum),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_koel_sum)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_koel_sum) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_koel_sum > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_koel_sum), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.2: Wuerzburg CEEMDAN discharge quantiles summer
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wuer_sum[, ])) / (alptempr::max_na(qannu_wuer_sum[, ]) + abs(alptempr::min_na(qannu_wuer_sum[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wuer_sum), alptempr::max_na(qannu_wuer_sum),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wuer_sum), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wuer_sumerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wuer_sum),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wuer_sum)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wuer_sum) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wuer_sum > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_wuer_sum), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-#Figure 1.3: Wasserburg CEEMDAN discharge quantiles autumn
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wass_aut[, ])) / (alptempr::max_na(qannu_wass_aut[, ]) + abs(alptempr::min_na(qannu_wass_aut[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wass_aut), alptempr::max_na(qannu_wass_aut),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wass_aut), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wass_auterb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wass_aut),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wass_aut)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wass_aut) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wass_aut > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_wass_aut), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.3: Basel CEEMDAN discharge quantiles autumn
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_base_aut[, ])) / (alptempr::max_na(qannu_base_aut[, ]) + abs(alptempr::min_na(qannu_base_aut[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_base_aut), alptempr::max_na(qannu_base_aut),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_base_aut), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) base_auterb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_base_aut),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_base_aut)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_base_aut) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_base_aut > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_base_aut), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.3: Koeln CEEMDAN discharge quantiles autumn
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_koel_aut[, ])) / (alptempr::max_na(qannu_koel_aut[, ]) + abs(alptempr::min_na(qannu_koel_aut[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_koel_aut), alptempr::max_na(qannu_koel_aut),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_koel_aut), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) koel_auterb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_koel_aut),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_koel_aut)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_koel_aut) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_koel_aut > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_koel_aut), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.3: Wuerzburg CEEMDAN discharge quantiles autumn
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wuer_aut[, ])) / (alptempr::max_na(qannu_wuer_aut[, ]) + abs(alptempr::min_na(qannu_wuer_aut[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wuer_aut), alptempr::max_na(qannu_wuer_aut),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wuer_aut), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wuer_auterb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wuer_aut),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wuer_aut)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wuer_aut) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wuer_aut > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_wuer_aut), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-
-#Figure 1.4: Wasserburg CEEMDAN discharge quantiles winter
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wass_win[, ])) / (alptempr::max_na(qannu_wass_win[, ]) + abs(alptempr::min_na(qannu_wass_win[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wass_win), alptempr::max_na(qannu_wass_win),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wass_win), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wass_winerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wass_win),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wass_win)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wass_win) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wass_win > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_wass_win), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.4: Basel CEEMDAN discharge quantiles winter
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_base_win[, ])) / (alptempr::max_na(qannu_base_win[, ]) + abs(alptempr::min_na(qannu_base_win[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_base_win), alptempr::max_na(qannu_base_win),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_base_win), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) base_winerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_base_win),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_base_win)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_base_win) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_base_win > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_base_win), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.4: Koeln CEEMDAN discharge quantiles winter
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_koel_win[, ])) / (alptempr::max_na(qannu_koel_win[, ]) + abs(alptempr::min_na(qannu_koel_win[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_koel_win), alptempr::max_na(qannu_koel_win),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_koel_win), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) koel_winerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_koel_win),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_koel_win)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_koel_win) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_koel_win > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_koel_win), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.4: Wuerzburg CEEMDAN discharge quantiles winter
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_wuer_win[, ])) / (alptempr::max_na(qannu_wuer_win[, ]) + abs(alptempr::min_na(qannu_wuer_win[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_wuer_win), alptempr::max_na(qannu_wuer_win),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_wuer_win), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) wuer_winerb. runoff qua. [m³/s]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_wuer_win),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_wuer_win)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_wuer_win) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wuer_win > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_wuer_win), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-par(mar = c(0,0,0,0))
 
 #Station names
+
+par(mar = c(0,0,0,0))
 
 plot(1:100, 1:100, axes = F, type = "n", xlab = "", ylab = "")
 mtext("Wasserburg (a)", side = 2, line = -1.8, cex = cex_header, adj = 1.00)
 mtext("Basel (b)",      side = 2, line = -1.8, cex = cex_header, adj = 0.66)
 mtext("Cologne (c)",      side = 2, line = -1.8, cex = cex_header, adj = 0.37)
 mtext("Wuerzburg (d)",  side = 2, line = -1.8, cex = cex_header, adj = 0.04, outer = T)
-# mtext("A",  side = 3, line = -6.00, cex = 1.5, adj = 0.014, outer = T)
-# mtext("B",  side = 3, line = -20.0, cex = 1.5, adj = 0.015, outer = T)
-# mtext("C",  side = 3, line = -34.0, cex = 1.5, adj = 0.016, outer = T)
-# mtext("D",  side = 3, line = -48.0, cex = 1.5, adj = 0.017, outer = T)
 
 #Analytical method
 
@@ -2048,15 +636,13 @@ mtext("4. Winter",
 mtext("Discharge: Changes in quantiles [m³/s]",  
       side = 3, line = -1.65, cex = cex_header, adj = 0.50)
 
-
 dev.off()
 
 
 
-#Fig_7----
+#Fig_ltc_prec_seas----
 
-# pdf("u:/RhineFlow/rhine_obs/manus/figures/Fig7.pdf", width = 16.6, height = 6.14)
-pdf("/home/erwin/ownCloud/RhineFlow/rhine_obs/manus/figures/Fig7.pdf", width = 16.6, height = 6.14)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_ltc_prec_seas.pdf", width = 16.6, height = 6.14)
 
 layout(matrix(c(26,25,25,25,
                 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5, 26,1,3,5,  
@@ -2071,636 +657,42 @@ layout(matrix(c(26,25,25,25,
 
 # layout.show(n = 26)
 
-x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
 
-ytiks      <- seq(10, 90, by =  10)
-ylabs      <- seq(90, 10, by = -10) 
+#Quantile change spring
+plot_emd_quan(qannu_rain_bern_spr, n_iso = 8)
 
-cols_qvalu <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white", 
-                                            "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
+plot_emd_quan(qannu_rain_base_spr, n_iso = 8)
 
-par(family = "serif")
+plot_emd_quan(qannu_rain_zuer_spr, n_iso = 8)
 
 
+#Quantile change summer
+plot_emd_quan(qannu_rain_bern_sum, n_iso = 8)
 
+plot_emd_quan(qannu_rain_base_sum, n_iso = 8)
 
-#Figure 1.1: Bern CEEMDAN precipitation quantiles spring
+plot_emd_quan(qannu_rain_zuer_sum, n_iso = 8)
 
-par(mar = mar_1)
 
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_bern_spr[, ])) / (alptempr::max_na(qannu_rain_bern_spr[, ]) + abs(alptempr::min_na(qannu_rain_bern_spr[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+#Quantile change autumn
+plot_emd_quan(qannu_rain_bern_aut, n_iso = 8)
 
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_bern_spr), alptempr::max_na(qannu_rain_bern_spr),length.out = length(cols_scale)+1))
+plot_emd_quan(qannu_rain_base_aut, n_iso = 8)
 
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_bern_spr), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
+plot_emd_quan(qannu_rain_zuer_aut, n_iso = 8)
 
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_bern_spr),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
 
-par(new = T)
+#Quantile change winter
+plot_emd_quan(qannu_rain_bern_win, n_iso = 8)
 
-par(mar = mar_1)
+plot_emd_quan(qannu_rain_base_win, n_iso = 8)
 
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_bern_spr)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_bern_spr) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_bern_spr > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
+plot_emd_quan(qannu_rain_zuer_win, n_iso = 8)
 
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_bern_spr), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.2: Basel CEEMDAN precipitation quantiles spring
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_base_spr[, ])) / (alptempr::max_na(qannu_rain_base_spr[, ]) + abs(alptempr::min_na(qannu_rain_base_spr[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_base_spr), alptempr::max_na(qannu_rain_base_spr),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_base_spr), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_base_spr),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_base_spr)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_base_spr) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_base_spr > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_base_spr), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.3: Zuerich CEEMDAN precipitation quantiles spring
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_zuer_spr[, ])) / (alptempr::max_na(qannu_rain_zuer_spr[, ]) + abs(alptempr::min_na(qannu_rain_zuer_spr[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_zuer_spr), alptempr::max_na(qannu_rain_zuer_spr),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_zuer_spr), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_zuer_spr),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_zuer_spr)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_zuer_spr) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_zuer_spr > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_zuer_spr), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.1: Bern CEEMDAN precipitation quantiles summer
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_bern_sum[, ])) / (alptempr::max_na(qannu_rain_bern_sum[, ]) + abs(alptempr::min_na(qannu_rain_bern_sum[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_bern_sum), alptempr::max_na(qannu_rain_bern_sum),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_bern_sum), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_bern_sum),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_bern_sum)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_bern_sum) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_bern_sum > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_bern_sum), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.2: Basel CEEMDAN precipitation quantiles summer
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_base_sum[, ])) / (alptempr::max_na(qannu_rain_base_sum[, ]) + abs(alptempr::min_na(qannu_rain_base_sum[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_base_sum), alptempr::max_na(qannu_rain_base_sum),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_base_sum), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_base_sum),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_base_sum)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_base_sum) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_base_sum > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_base_sum), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.3: Zuerich CEEMDAN precipitation quantiles summer
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_zuer_sum[, ])) / (alptempr::max_na(qannu_rain_zuer_sum[, ]) + abs(alptempr::min_na(qannu_rain_zuer_sum[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_zuer_sum), alptempr::max_na(qannu_rain_zuer_sum),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_zuer_sum), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_zuer_sum),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_zuer_sum)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_zuer_sum) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_zuer_sum > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_zuer_sum), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.3: Bern CEEMDAN precipitation quantiles autumn
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_bern_aut[, ])) / (alptempr::max_na(qannu_rain_bern_aut[, ]) + abs(alptempr::min_na(qannu_rain_bern_aut[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_bern_aut), alptempr::max_na(qannu_rain_bern_aut),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_bern_aut), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_bern_aut),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_bern_aut)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_bern_aut) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_bern_aut > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_bern_aut), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.3: Basel CEEMDAN precipitation quantiles autumn
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_base_aut[, ])) / (alptempr::max_na(qannu_rain_base_aut[, ]) + abs(alptempr::min_na(qannu_rain_base_aut[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_base_aut), alptempr::max_na(qannu_rain_base_aut),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_base_aut), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_base_aut),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_base_aut)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_base_aut) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_base_aut > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_base_aut), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.3: Zuerich CEEMDAN precipitation quantiles autumn
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_zuer_aut[, ])) / (alptempr::max_na(qannu_rain_zuer_aut[, ]) + abs(alptempr::min_na(qannu_rain_zuer_aut[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_zuer_aut), alptempr::max_na(qannu_rain_zuer_aut),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_zuer_aut), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_zuer_aut),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_zuer_aut)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_zuer_aut) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_zuer_aut > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_zuer_aut), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 1.4: Bern CEEMDAN precipitation quantiles winter
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_bern_win[, ])) / (alptempr::max_na(qannu_rain_bern_win[, ]) + abs(alptempr::min_na(qannu_rain_bern_win[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_bern_win), alptempr::max_na(qannu_rain_bern_win),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_bern_win), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_bern_win),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_bern_win)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_bern_win) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_bern_win > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_bern_win), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.4: Basel CEEMDAN precipitation quantiles winter
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_base_win[, ])) / (alptempr::max_na(qannu_rain_base_win[, ]) + abs(alptempr::min_na(qannu_rain_base_win[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_base_win), alptempr::max_na(qannu_rain_base_win),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_base_win), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_base_win),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_base_win)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_base_win) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_base_win > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_base_win), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.4: Zuerich CEEMDAN precipitation quantiles winter
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_zuer_win[, ])) / (alptempr::max_na(qannu_rain_zuer_win[, ]) + abs(alptempr::min_na(qannu_rain_zuer_win[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_zuer_win), alptempr::max_na(qannu_rain_zuer_win),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_zuer_win), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) Bern precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_zuer_win),
-        nlevels = n_iso_7,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_zuer_win)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_zuer_win) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_zuer_win > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_zuer_win), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-par(mar = c(0,0,0,0))
 
 #Station names
+
+par(mar = c(0,0,0,0))
 
 plot(1:100, 1:100, axes = F, type = "n", xlab = "", ylab = "")
 mtext("Bern (a)",    side = 2, line = -1.8, cex = cex_header, adj = 0.92)
@@ -2724,10 +716,9 @@ mtext("Precipitation: Changes in quantiles [mm]",
 dev.off()
 
 
-#Fig_8----
+#Fig_ltc_tp_add----
 
-pdf("u:/RhineFlow/rhine_obs/manus/figures/Fig8.pdf", width = 16.6, height = 12.28)
-# tiff("u:/RhineFlow/rhine_obs/manus/figures/Fig5.tif", width = 16.6, height = 6.14, units = 'in', res = 800)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_ltc_tp_add.pdf", width = 16.6, height = 12.28)
 
 layout(matrix(c(50,49,49,49,49,49,49,
                 50,1,3,5,7,9,11, 50,1,3,5,7,9,11, 50,1,3,5,7,9,11,50,1,3,5,7,9,11, 50,1,3,5,7,9,11, 50,1,3,5,7,9,11, 50,1,3,5,7,9,11,  
@@ -2742,1331 +733,69 @@ layout(matrix(c(50,49,49,49,49,49,49,
 
 # layout.show(n = 50)
 
-x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+#Plot: Emd values temperature
 
-ytiks      <- seq(10, 90, by =  10)
-ylabs      <- seq(90, 10, by = -10) 
+plot_emd_val(emd_temp_sion, rev_cols = T, n_iso = 8)
 
-cols_qvalu <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white", 
-                                            "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(200)
+plot_emd_val(emd_temp_same, rev_cols = T, n_iso = 8)
 
-par(family = "serif")
+plot_emd_val(emd_temp_neuc, rev_cols = T, n_iso = 8)
 
+plot_emd_val(emd_temp_luga, rev_cols = T, n_iso = 8)
 
-#Figure 1.1 : Sion CEEMDAN temperature
+plot_emd_val(emd_temp_gene, rev_cols = T, n_iso = 8)
 
-par(mar = mar_1)
+plot_emd_val(emd_temp_chau, rev_cols = T, n_iso = 8)
 
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_sion[, ])) / (max_na(emd_temp_sion[, ]) + abs(min_na(emd_temp_sion[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
 
-cols_emd <- c(cols_min, cols_max)
+#Plot: EMD annual quantiles temperature
 
-brea_emd <- c(seq(min_na(emd_temp_sion), max_na(emd_temp_sion),length.out = length(cols_emd)+1))
+plot_emd_quan(qannu_temp_sion, rev_cols = T, n_iso = 8)
 
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_sion), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("e) sionich temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
+plot_emd_quan(qannu_temp_same, rev_cols = T, n_iso = 8)
 
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_sion)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
+plot_emd_quan(qannu_temp_neuc, rev_cols = T, n_iso = 8)
 
-par(new = T)
+plot_emd_quan(qannu_temp_luga, rev_cols = T, n_iso = 8)
 
-par(mar = mar_1)
+plot_emd_quan(qannu_temp_gene, rev_cols = T, n_iso = 8)
 
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_sion)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_sion) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_sion > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
+plot_emd_quan(qannu_temp_chau, rev_cols = T, n_iso = 8)
 
 
-par(mar = mar_2)
+#Plot: Emd values precipitation
 
-image_scale(as.matrix(emd_temp_sion), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+plot_emd_val(emd_rain_sion, n_iso = 6)
 
-box()
+plot_emd_val(emd_rain_same, n_iso = 6)
 
-#Figure 5.1 : Samedan CEEMDAN temperature
+plot_emd_val(emd_rain_neuc, n_iso = 6)
 
-par(mar = mar_1)
+plot_emd_val(emd_rain_luga, n_iso = 6)
 
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_same[, ])) / (max_na(emd_temp_same[, ]) + abs(min_na(emd_temp_same[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
+plot_emd_val(emd_rain_gene, n_iso = 6)
 
-cols_emd <- c(cols_min, cols_max)
+plot_emd_val(emd_rain_chau, n_iso = 6)
 
-brea_emd <- c(seq(min_na(emd_temp_same), max_na(emd_temp_same),length.out = length(cols_emd)+1))
 
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_same), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("e) sameich temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
+#Plot: EMD annual quantiles precipitation
 
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_same)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
+plot_emd_quan(qannu_rain_sion, n_iso = 8)
 
-par(new = T)
+plot_emd_quan(qannu_rain_same, n_iso = 8)
 
-par(mar = mar_1)
+plot_emd_quan(qannu_rain_neuc, n_iso = 8)
 
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_same)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_same) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_same > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
+plot_emd_quan(qannu_rain_luga, n_iso = 8)
 
+plot_emd_quan(qannu_rain_gene, n_iso = 8)
 
-par(mar = mar_2)
+plot_emd_quan(qannu_rain_chau, n_iso = 8)
 
-image_scale(as.matrix(emd_temp_same), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.1 : Neuchatel CEEMDAN temperature
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_neuc[, ])) / (max_na(emd_temp_neuc[, ]) + abs(min_na(emd_temp_neuc[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_temp_neuc), max_na(emd_temp_neuc),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_neuc), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("e) neucich temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_neuc)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_neuc)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_neuc) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_neuc > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_temp_neuc), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.1 : Lugano CEEMDAN temperature
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_luga[, ])) / (max_na(emd_temp_luga[, ]) + abs(min_na(emd_temp_luga[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_temp_luga), max_na(emd_temp_luga),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_luga), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("e) lugaich temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_luga)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_luga)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_luga) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_luga > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_temp_luga), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 5.1: Geneve CEEMDAN temperature
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_gene[, ])) / (max_na(emd_temp_gene[, ]) + abs(min_na(emd_temp_gene[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_temp_gene), max_na(emd_temp_gene),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_gene), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("c) genel temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_gene)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_gene)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_gene) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_gene > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_temp_gene), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-
-#Figure 6.1 : Chaumont CEEMDAN temperature
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_temp_chau[, ])) / (max_na(emd_temp_chau[, ]) + abs(min_na(emd_temp_chau[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_temp_chau), max_na(emd_temp_chau),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_temp_chau), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) chau temperature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_temp_chau)),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_temp_chau)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_temp_chau) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_temp_chau > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_temp_chau), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-
-
-#Figure 1.2: Sion CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_sion[, ])) / (alptempr::max_na(qannu_temp_sion[, ]) + abs(alptempr::min_na(qannu_temp_sion[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_sion), alptempr::max_na(qannu_temp_sion),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_sion), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) sion precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_sion),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_sion)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_sion) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_sion > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_sion), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.2: Samedan CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_same[, ])) / (alptempr::max_na(qannu_temp_same[, ]) + abs(alptempr::min_na(qannu_temp_same[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_same), alptempr::max_na(qannu_temp_same),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_same), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) same precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_same),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_same)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_same) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_same > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_same), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.2: Neuchatel CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_neuc[, ])) / (alptempr::max_na(qannu_temp_neuc[, ]) + abs(alptempr::min_na(qannu_temp_neuc[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_neuc), alptempr::max_na(qannu_temp_neuc),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_neuc), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) neuc precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_neuc),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_neuc)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_neuc) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_neuc > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_neuc), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.2: Lugano CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_luga[, ])) / (alptempr::max_na(qannu_temp_luga[, ]) + abs(alptempr::min_na(qannu_temp_luga[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_luga), alptempr::max_na(qannu_temp_luga),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_luga), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) luga precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_luga),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_luga)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_luga) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_luga > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_luga), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 5.2: Geneve CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_gene[, ])) / (alptempr::max_na(qannu_temp_gene[, ]) + abs(alptempr::min_na(qannu_temp_gene[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_gene), alptempr::max_na(qannu_temp_gene),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_gene), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) gene precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_gene),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_gene)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_gene) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_gene > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_gene), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 6.2: Chaumont CEEMDAN temperature quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_temp_chau[, ])) / (alptempr::max_na(qannu_temp_chau[, ]) + abs(alptempr::min_na(qannu_temp_chau[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_temp_chau), alptempr::max_na(qannu_temp_chau),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_temp_chau), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) chau precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_temp_chau),
-        nlevels = n_iso_4,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_temp_chau)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_temp_chau) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_temp_chau > 0.05, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_temp_chau), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-
-#Figure 1.3 : Sion CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_sion[, ])) / (max_na(emd_rain_sion[, ]) + abs(min_na(emd_rain_sion[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_sion), max_na(emd_rain_sion),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_sion), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) Bern rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_sion)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_sion)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_sion) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_sion > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_sion), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.3 : Samedan CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_same[, ])) / (max_na(emd_rain_same[, ]) + abs(min_na(emd_rain_same[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_same), max_na(emd_rain_same),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_same), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) same rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_same)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_same)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_same) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_same > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_same), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.3 : Neuchatel CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_neuc[, ])) / (max_na(emd_rain_neuc[, ]) + abs(min_na(emd_rain_neuc[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_neuc), max_na(emd_rain_neuc),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_neuc), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) neuc rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_neuc)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_neuc)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_neuc) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_neuc > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_neuc), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.3 : Lugano CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_luga[, ])) / (max_na(emd_rain_luga[, ]) + abs(min_na(emd_rain_luga[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_luga), max_na(emd_rain_luga),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_luga), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) luga rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_luga)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_luga)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_luga) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_luga > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_luga), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 5.3 : Geneve CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_gene[, ])) / (max_na(emd_rain_gene[, ]) + abs(min_na(emd_rain_gene[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_gene), max_na(emd_rain_gene),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_gene), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) gene rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_gene)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_gene)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_gene) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_gene > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_gene), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 6.3 : Chaumont CEEMDAN precipitation
-
-par(mar = mar_1)
-
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-n_max <- round(abs(max_na(emd_rain_chau[, ])) / (max_na(emd_rain_chau[, ]) + abs(min_na(emd_rain_chau[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_rain_chau), max_na(emd_rain_chau),length.out = length(cols_emd)+1))
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_rain_chau), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06, cex.axis = cex_x_axis)#plot ticks
-for(i in 1:length(x_axis_lab)){
-  axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
-       mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
-}
-# mtext("a) chau rainerature [°C]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-box()
-
-contour(x = 1:365,
-        y = sta_yea_emd:end_yea_emd,
-        z = as.matrix(t(emd_rain_chau)),
-        nlevels = n_iso_5,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_rain_chau)), xlim = c(0.5, 365.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:365, rep((nrow(emd_rain_chau) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_rain_chau > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-
-par(mar = mar_2)
-
-image_scale(as.matrix(emd_rain_chau), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-
-#Figure 1.4: Sion CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_sion[, ])) / (alptempr::max_na(qannu_rain_sion[, ]) + abs(alptempr::min_na(qannu_rain_sion[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_sion), alptempr::max_na(qannu_rain_sion),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_sion), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) sion precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_sion),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_sion)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_sion) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_sion > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_sion), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 2.4: Samedan CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_same[, ])) / (alptempr::max_na(qannu_rain_same[, ]) + abs(alptempr::min_na(qannu_rain_same[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_same), alptempr::max_na(qannu_rain_same),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_same), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) same precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_same),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_same)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_same) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_same > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_same), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 3.4: Neuchatel CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_neuc[, ])) / (alptempr::max_na(qannu_rain_neuc[, ]) + abs(alptempr::min_na(qannu_rain_neuc[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_neuc), alptempr::max_na(qannu_rain_neuc),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_neuc), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) neuc precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_neuc),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_neuc)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_neuc) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_neuc > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_neuc), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 4.4: Lugano CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_luga[, ])) / (alptempr::max_na(qannu_rain_luga[, ]) + abs(alptempr::min_na(qannu_rain_luga[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_luga), alptempr::max_na(qannu_rain_luga),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_luga), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) luga precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_luga),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_luga)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_luga) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_luga > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_luga), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 5.4: Geneve CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_gene[, ])) / (alptempr::max_na(qannu_rain_gene[, ]) + abs(alptempr::min_na(qannu_rain_gene[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_gene), alptempr::max_na(qannu_rain_gene),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_gene), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) gene precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_gene),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_gene)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_gene) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_gene > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_gene), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-
-#Figure 6.4: Chaumont CEEMDAN precipitation quantiles
-
-par(mar = mar_1)
-
-x_axis_tic <- seq(10, 90, by = 10)
-n_max <- round(abs(alptempr::max_na(qannu_rain_chau[, ])) / (alptempr::max_na(qannu_rain_chau[, ]) + abs(alptempr::min_na(qannu_rain_chau[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_min <- colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(n_min)
-cols_max <- colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4"))(n_max)
-
-cols_scale <- c(cols_min, cols_max)
-brea_scale <- c(seq(alptempr::min_na(qannu_rain_chau), alptempr::max_na(qannu_rain_chau),length.out = length(cols_scale)+1))
-
-image(x = 1:99,
-      y = sta_yea_ann:end_yea_ann,
-      z = t(qannu_rain_chau), 
-      col    = cols_scale, 
-      breaks = brea_scale,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
-axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
-# mtext("b) chau precipitation [mm]", side = 3, line = 0.3, cex = cex_header, adj = 0)
-box()
-
-contour(x = 1:99,
-        y = sta_yea_ann:end_yea_ann,
-        z =t(qannu_rain_chau),
-        nlevels = n_iso_6,
-        add = T,
-        lwd = lwd_iso,
-        labcex = cex_iso)
-
-par(new = T)
-
-par(mar = mar_1)
-
-par(xpd=NA)
-plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_rain_chau)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
-points(1:99, rep((nrow(qannu_rain_chau) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_rain_chau > lev_sig, "#FFFFFF00", "black"))
-par(xpd=F)
-
-
-par(mar = mar_2)
-
-alptempr::image_scale(as.matrix(qannu_rain_chau), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
-
-box()
-
-par(mar = c(0,0,0,0))
 
 #Station names
+
+par(mar = c(0,0,0,0))
 
 plot(1:100, 1:100, axes = F, type = "n", xlab = "", ylab = "")
 mtext("Sion (a)",    side = 2, line = -1.8, cex = cex_header, adj = 0.96)
@@ -4098,7 +827,7 @@ dev.off()
 
 
 
-#Fig_9----
+#Fig_reservoirs----
 
 #High Rhine reservoirs
 #Wildenhahn und Klaholz 1996: Gro?e Speicherseen im Einzugsgebiet des Rheins, Internationale Kommission fur die Hydrologie des Rheingebietes (KHR)
@@ -4199,9 +928,7 @@ tota_vol <- c(
 )
 
 
-
-pdf("u:/RhineFlow/rhine_obs/manus/figures/Fig9.pdf", width = 8.3, height = 3.0)
-# pdf("/home/erwin/ownCloud/Fig9.pdf", width = 8.3, height = 3.0)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/reservoirs.pdf", width = 8.3, height = 3.0)
 
 my_blu_2 <- rgb(44, 114, 142, max = 255, alpha = 50)
 
@@ -4225,7 +952,7 @@ lines(reses_agg$years, reses_agg$cum, lwd = 1.8)
 axis(1, at = c(1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980), c(1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980),
      mgp=c(3, 0.10, 0), tck = -0.015, cex.axis = 1.0)
 axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = 1.0)
-mtext("Cum. storage volume [hm?]", side = 2, line = 1.5, cex = 1.2, adj = 0.5)
+mtext("Cum. storage volume [hm³]", side = 2, line = 1.5, cex = 1.2, adj = 0.5)
 mtext(paste(perc_vol[2], "%"), side = 1, line = -2.8, cex = 1.2, adj = 0.07)
 mtext(paste(perc_vol[3], "%"), side = 1, line = -5.4, cex = 1.2, adj = 0.07)
 mtext(paste(perc_vol[4], "%"), side = 1, line = -7.8, cex = 1.2, adj = 0.07)
@@ -4235,19 +962,12 @@ box(lwd = 1)
 dev.off()
 
 
-
-#Fig_10----
-
+#Fig_rast_hydro----
 
 #Raster hydrograph Wasserburg
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_rast_hydro.pdf", width = 8.3, height = 4.5)
 
-library(meltimr)
-library(alptempr)
-library(emdbook)
-
-grdc_dir <- "/home/erwin/ownCloud/"
-
-grdc_data <- read_grdc(paste0(grdc_dir, "6343100_Q_Day.Cmd.txt"))
+grdc_data <- read_grdc(paste0(dir_grdc, "6343100_Q_Day.Cmd.txt"))
 
 #Order data by day (including break day to set start hydrologica year)
 data_day <- ord_day(data_in = grdc_data$value,
@@ -4263,8 +983,10 @@ x_axis_tic <- c(16,46,74,105,135,166,196,227,258,288,319,349,380)-15
 
 
 lab_unit <- "[m³/s]"
-cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(100)
-cols_max <- grDevices::colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(100)
+# cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(100)
+# cols_max <- grDevices::colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(100)
+cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(100)
+cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(100)
 cols_hydro <- c(cols_min, cols_max)
 
 max_break <- max_na(data_day)
@@ -4277,7 +999,6 @@ breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + 0.1
 
 breaks_hydro <- c(breaks_1, breaks_2)
 
-pdf("/home/erwin/ownCloud/Fig10.pdf", width = 8.3, height = 4.5)
 
 par(mar = c(1.6, 2.5, 0.2, 0.2))
 
@@ -4313,17 +1034,13 @@ dev.off()
 
 
 
-#Fig_11----
+#Fig_elevs_parde----
 
 #Elevation distribution and Parde-Coefficients
 
-library(raster)
-library(meltimr)
-library(alptempr)
-
 #Elevation boxplots individual basins
-load("/home/erwin/ownCloud/ele_parde.RData")
-# base_dir <- "U:/RhineFlow/rhine_obs/manus/figures/map/"
+# load("/home/erwin/ownCloud/ele_parde.RData")
+base_dir <- "U:/RhineFlow/rhine_obs/data/map/"
 
 dem = raster(paste0(base_dir, "/eu_dem_500_fil.tif"))
 
@@ -4362,9 +1079,6 @@ ele_list <- list(dem_ele_wass, dem_ele_base, dem_ele_koel, dem_ele_wuer)
 
 
 #Parde-Coefficients
-
-dir_grdc <- "d:/nrc_user/rottler/GRDC_DAY/"
-
 grdc_data_wass <- read_grdc(paste0(dir_grdc, "6343100_Q_Day.Cmd.txt"))
 grdc_data_base <- read_grdc(paste0(dir_grdc, "6935051_Q_Day.Cmd.txt"))
 grdc_data_koel <- read_grdc(paste0(dir_grdc, "6335060_Q_Day.Cmd.txt"))
@@ -4409,8 +1123,6 @@ yea_mea_base <- apply(data_day_base, 2, mea_na)
 yea_mea_koel <- apply(data_day_koel, 2, mea_na)
 yea_mea_wuer <- apply(data_day_wuer, 2, mea_na)
 
-plot(yea_mea_wuer)
-
 month_ind <- c(rep(1, 31), rep(2, 28), rep(3, 31), rep(4, 30), rep(5, 31), rep(6, 30),
                rep(7, 31), rep(8, 31), rep(9, 30), rep(10, 31), rep(11, 30), rep(12, 31))
 
@@ -4426,8 +1138,7 @@ parde_ind_wuer <- mon_mea_wuer$x / mea_na(yea_mea_wuer)
 
 #Plot: Elevation + Parde-Coefficients
 
-# pdf("u:/RhineFlow/rhine_obs/manus/figures/Fig11.pdf", width = 8.3, height = 5.5)
-pdf("/home/erwin/ownCloud/Fig11.pdf", width = 8.3, height = 5.5)
+pdf("U:/RhineFlow/rhine_obs/R/figs_manus/fig_elev_parde.pdf", width = 8.3, height = 5.5)
 
 x_axis_lab <- 1:12
 x_axis_tic <- (1:13)-0.5
@@ -4435,9 +1146,6 @@ col_wass <- viridis::viridis(9, direction = 1)[2]
 col_base <- viridis::viridis(9, direction = 1)[4]
 col_koel <- "orange2"
 col_wuer <- "orangered3"
-
-# cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[1:4], "cadetblue3", "white"))(100)
-# cols_max <- grDevices::colorRampPalette(c("white", "yellow2","gold2", "orange2", "orangered3", "orangered4", "red4"))(100)
 
 par(mfrow = c(2, 1))
 par(mar = c(1.8, 2.6, 1.5, 0.2))
@@ -4471,92 +1179,25 @@ axis(1, at = x_axis_tic, c("","","","","","","","","","","","",""), tick = TRUE,
      col = "black", col.axis = "black", tck = -0.08)#plot ticks
 axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O", "N", "D"), tick = FALSE,
      col="black", col.axis="black", mgp=c(3, 0.35, 0), cex.axis = 1.2)#plot labels
-mtext("Pard?-coefficient", side = 2, line = 1.3, cex = 1.2, adj = 0.5)
-mtext("b) Pard?-coefficients", side = 3, line = 0.3, cex = 1.6, adj = 0.0)
+mtext("Pardé-coefficient", side = 2, line = 1.3, cex = 1.2, adj = 0.5)
+mtext("b) Pardé-coefficients", side = 3, line = 0.3, cex = 1.6, adj = 0.0)
 box()
 
 dev.off()
 
 
-
-
 #table----
 
-read_grdc <- function(file_path){
-  
-  data_grdc <- read.table(file_path, sep = ";", header = T, stringsAsFactors = F, na.strings = "-999.000")
-  
-  #define date
-  data_grdc_date <- as.Date(strptime(data_grdc$YYYY.MM.DD, "%Y-%m-%d", tz="UTC"))
-  #covert to time series object
-  data_grdc_value <- data_grdc$Value
-  
-  data_grdc_ts <- data.frame(date  = data_grdc_date,
-                             value = data_grdc_value)
-  
-  return(data_grdc_ts)
-  
-}
-
-ord_day <- function(data_in, date, start_y = start_year, end_y = end_year){
-  
-  input_data_full <- data.frame(date = date, value = data_in)
-  
-  #Clip selected time period
-  input_data <- input_data_full[as.numeric(format(input_data_full$date,'%Y')) >= start_y, ]
-  input_data <- input_data[as.numeric(format(input_data$date,'%Y')) <= end_y, ]
-  
-  #Fill possible gaps
-  start_date <- as.POSIXct(strptime(paste0(start_y,"-01-01"), "%Y-%m-%d", tz="UTC"))
-  end_date   <- as.POSIXct(strptime(paste0(end_y,"-12-31"),   "%Y-%m-%d", tz="UTC"))
-  full_date  <- seq(start_date, end_date, by="day")
-  
-  input_data <- data.frame(dates  = full_date,
-                           values = with(input_data, value[match(as.Date(full_date), as.Date(date))])
-  )
-  
-  #Remove 29th of February
-  input_data <- input_data[-which(format(input_data$date, "%m%d") == "0229"),]
-  
-  #Vector with the 365 days of the year
-  days <- seq(as.Date('2014-01-01'), to=as.Date('2014-12-31'), by='days')
-  days <- format(days,"%m-%d")
-  
-  #Order data by day
-  data_day <-  matrix(NA, nrow = length(start_y:end_y), ncol = 366)
-  colnames(data_day) <- c("year", days)
-  data_day[ ,1] <- start_y:end_y
-  
-  for(i in 0:(length(start_y:end_y)-1)) {
-    
-    data_day[i+1, 2:366] <- input_data$values[(i*365+1):((i+1)*365)]
-    
-  }
-  
-  return(data_day)
-  
-}
+grdc_data <- read_grdc(paste0(dir_grdc, "6335500_Q_Day.Cmd.txt"))
 
 # 6343100_Q_Day.Cmd.txt Wasserburg (Inn)
 # 6935051_Q_Day.Cmd.txt Basel (Rhine)
 # 6335060_Q_Day.Cmd.txt Koeln (Rhine)
 # 6335500_Q_Day.Cmd.txt Würzburg (Main)
 
-grdc_data <- read_grdc(paste0("E:/GRDC_DAY/", "6335500_Q_Day.Cmd.txt"))
+grdc_data_day <- ord_day(grdc_data$value, grdc_data$date, start_y = 1869, end_y = 2016)
 
-grdc_data_day <- ord_day(grdc_data$value, grdc_data$date, start_y = 1869, end_y = 2012)
-
-mean(grdc_data_day)
-
-annu_mea <- apply(grdc_data_day, 1, mean)
-
-mean(annu_mea)
-
-
-total_vol <- 1.86*10^9
-days <- 31+31+28+31+30
-
-total_vol / (days*24*365) / 144
+mea_na(grdc_data_day)
 
 
 #dfsdfsd----
