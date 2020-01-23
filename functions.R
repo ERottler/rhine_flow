@@ -4,6 +4,261 @@
 
 ###
 
+#Plot functions: Seasonality of river runoff
+plot_quan_doy <- function(qvalu_in){
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(10, 90, by =  10)
+  
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(100)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(100)
+  cols_qvalu <- c(cols_min, cols_max)
+  
+  probs_iso <- c(0.1, 0.5, 0.9)
+  break_quant <- 0.5
+  par(family = "serif")
+  
+  max_break <- max_na(qvalu_in)
+  min_break <- min_na(qvalu_in)
+  qua_break <- quantile(qvalu_in, probs = break_quant, type = 8, na.rm = T)
+  iso_def <- quantile(qvalu_in, probs = probs_iso, type = 8, na.rm = T)
+  
+  breaks_1 <- seq(min_break, qua_break, length.out = length(cols_qvalu)/2)
+  breaks_2 <- lseq(qua_break+0.01, max_break, length.out = length(cols_qvalu)/2 + 1)
+  breaks_2[length(breaks_2)] <- breaks_2[length(breaks_2)] + 0.1
+  
+  breaks_qvalu <- c(breaks_1, breaks_2)
+  
+  y <- 1:ncol(qvalu_in)
+  x <- 1:365
+  
+  par(mar = mar_1)
+  
+  image(x, y, as.matrix(qvalu_in), col = cols_qvalu, breaks = breaks_qvalu, ylab = "",
+        xlab = "", axes = F)
+  
+  axis(2, at = ytiks, labels = ylabs/100, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.05, cex.axis = cex_x_axis)#plot ticks
+  for(i in 1:length(x_axis_lab)){
+    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
+         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
+  }
+  box()
+  
+  contour(x = x,
+          y = y,
+          z = as.matrix(qvalu_in),
+          levels = round(iso_def, 0),
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(mar = mar_2)
+  
+  alptempr::image_scale(as.matrix(qvalu_in), col = cols_qvalu, breaks = breaks_qvalu, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()
+  
+}
+
+
+#Plot functions: Changes in seasonality of river runoff
+plot_mov_quan <- function(qvslo_in, n_iso = 6){
+  
+  par(family = "serif")
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(10, 90, by =  10)
+  
+  n_max <- round(abs(alptempr::max_na(qvslo_in)) / (alptempr::max_na(qvslo_in) + abs(alptempr::min_na(qvslo_in))), digits = 2) * 200
+  n_min <- 200 - n_max
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(n_min)
+  cols_qvslo <- c(cols_min, cols_max)
+  
+  breaks_qvslo <-  seq(alptempr::min_na(qvslo_in), alptempr::max_na(qvslo_in), length.out = length(cols_qvslo) +1)
+  
+  y <- 1:ncol(qvslo_in)
+  x <- 1:365
+  
+  par(mar = mar_1)
+  
+  image(x, y, as.matrix(qvslo_in), col = cols_qvslo, breaks = breaks_qvslo, ylab = "",
+        xlab = "", axes = F)
+  axis(2, at = ytiks, labels = ylabs/100, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.05, cex.axis = cex_x_axis)#plot ticks
+  for(i in 1:length(x_axis_lab)){
+    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
+         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
+  }
+  box()
+  
+  contour(x = x,
+          y = y,
+          z = as.matrix(qvslo_in),
+          nlevels = n_iso,
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(mar = mar_2)
+  
+  alptempr::image_scale(as.matrix(qvslo_in), col = cols_qvslo, breaks = breaks_qvslo, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()  
+  
+}
+
+
+#Plot functions: Onset and evolution of changes
+plot_emd_val <- function(emd_val_in, n_iso = 8, rev_cols = F){
+  
+  par(family = "serif")
+  
+  x_axis_lab <- c(15,46,74,105,135,166,196,227,258,288,319,349)
+  x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
+  ytiks      <- seq(10, 90, by =  10)
+  ylabs      <- seq(10, 90, by =  10)
+  
+  par(mar = mar_1)
+  
+  n_max <- round(abs(max_na(emd_val_in[, ])) / (max_na(emd_val_in[, ]) + abs(min_na(emd_val_in[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2", "gold2", "yellow2", "white"))(n_min)
+  if(rev_cols){
+    cols_max <- grDevices::colorRampPalette(c("white", "yellow2", "gold2", "orange2", "orangered4", "red4"))(n_max)
+    cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[c(1, 1:4)], "cadetblue3", "white"))(n_min)
+  }
+  
+  cols_emd <- c(cols_min, cols_max)
+  
+  brea_emd <- c(seq(min_na(emd_val_in), max_na(emd_val_in),length.out = length(cols_emd)+1))
+  
+  image(x = 1:365,
+        y = sta_yea_emd:end_yea_emd,
+        z = t(emd_val_in), 
+        col    = cols_emd, 
+        breaks = brea_emd,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.06)#plot ticks
+  for(i in 1:length(x_axis_lab)){
+    axis(1, at = x_axis_lab[i], lab_months[i], tick = FALSE, col="black", col.axis="black", 
+         mgp=c(4, x_lab_posi, 0), cex.axis = cex_x_axis)
+  }
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  box()
+  
+  contour(x = 1:365,
+          y = sta_yea_ann:end_yea_ann,
+          z = t(emd_val_in),
+          nlevels = n_iso,
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(new = T)
+  
+  par(mar = mar_1)
+  
+  par(xpd=NA)
+  plot(1:365, rep(1, 365), ylim = c(1, nrow(emd_val_in)), xlim = c(1, 365), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
+  points(1:365, rep((nrow(emd_val_in) + 5), 365), pch = 19, cex = 0.25, col = ifelse(emd_mk_wass > lev_sig, "#FFFFFF00", "black"))
+  par(xpd=F)
+  
+  par(mar = mar_2)
+  
+  image_scale(as.matrix(emd_val_in), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()
+  
+  
+}
+
+
+#Plot functions: Changes in intesity
+plot_emd_quan <- function(qannu_in, n_iso = 12, rev_cols = F){
+  
+  par(family = "serif")
+  
+  par(mar = mar_1)
+  
+  x_axis_tic <- seq(10, 90, by = 10)
+  n_max <- round(abs(alptempr::max_na(qannu_in[, ])) / (alptempr::max_na(qannu_in[, ]) + abs(alptempr::min_na(qannu_in[, ]))), digits = 2) * 200
+  n_min <- 200 - n_max
+  cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
+  cols_min <- grDevices::colorRampPalette(c("red4","orangered4", "orange2","gold2", "yellow2", "white"))(n_min)
+  if(rev_cols){
+    cols_max <- grDevices::colorRampPalette(c("white", "yellow2", "gold2", "orange2", "orangered4", "red4"))(n_max)
+    cols_min <- grDevices::colorRampPalette(c(viridis::viridis(9, direction = 1)[c(1, 1:4)], "cadetblue3", "white"))(n_min)
+  }
+  
+  cols_scale <- c(cols_min, cols_max)
+  brea_scale <- c(seq(alptempr::min_na(qannu_in), alptempr::max_na(qannu_in),length.out = length(cols_scale)+1))
+  
+  image(x = 1:99,
+        y = sta_yea_ann:end_yea_ann,
+        z = t(qannu_in), 
+        col    = cols_scale, 
+        breaks = brea_scale,
+        ylab = "", xlab = "", axes = F)
+  axis(1, at = x_axis_tic, x_axis_tic/100, tick = TRUE,
+       col = "black", col.axis = "black", tck = -0.02, mgp=c(3, x_lab_posi, 0), cex.axis = cex_x_axis)#plot ticks
+  axis(2, mgp=c(3, 0.15, 0), tck = -0.02, cex.axis = cex_y_axis)
+  box()
+  
+  contour(x = 1:99,
+          y = sta_yea_ann:end_yea_ann,
+          z = t(qannu_in),
+          nlevels = n_iso,
+          add = T,
+          lwd = lwd_iso,
+          labcex = cex_iso)
+  
+  par(new = T)
+  
+  par(mar = mar_1)
+  
+  par(xpd=NA)
+  plot(1:99, rep(1, 99), ylim = c(1, nrow(qannu_in)), xlim = c(0.5, 99.5), axes = F, ylab = "", xlab = "", xaxs = "i", yaxs = "i", type = "n")
+  points(1:99, rep((nrow(qannu_in) + 5), 99), pch = 19, cex = 0.25, col = ifelse(qannu_mk_wass > 0.05, "#FFFFFF00", "black"))
+  par(xpd=F)
+  
+  
+  par(mar = mar_2)
+  
+  alptempr::image_scale(as.matrix(qannu_in), col = cols_scale, breaks = brea_scale, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
+  axis(4, mgp=c(3, y_lab_scal, 0), tck = -0.08, cex.axis = cex_y_axis)
+  
+  box()
+  
+}
+
+
+#Function to do CEEMDAN and return residual
+f_emd_resid <- function(data_in){
+  
+  my_emd <- Rlibeemd::ceemdan(input = data_in, ensemble_size = my_enseble_size, noise_strength = my_noise_strength)
+  emd_out <- my_emd[, ncol(my_emd)]
+  
+  if(length(emd_out) < 1){
+    emd_out <- rep(NA, length(data_in))
+  }
+  
+  return(emd_out)
+}
+
+
 #Local polynomial Regression Fitting with NA-restoring
 loess_na <- function (data_in, sm_span = 0.2, NA_restore = TRUE, poly_degree = 2){
   
@@ -22,6 +277,13 @@ loess_na <- function (data_in, sm_span = 0.2, NA_restore = TRUE, poly_degree = 2
 #Number even or not
 is.even <- function(x) {x %% 2 == 0}
 
+#NAs to mean of vector
+na2mea <- function(data_in){
+  
+  data_in[which(is.na(data_in))] <- mea_na(data_in)
+  return(data_in)
+  
+} 
 
 #Berry gdp function for parametric quantiles
 GPDquantile <- function(x, probs){

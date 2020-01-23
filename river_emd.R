@@ -365,31 +365,11 @@ for(i in 0:(length(sta_yea_emd:end_yea_emd)-1)) {
 #fill NA with mean of day
 if(do_na_fil_emd){
   
-  na2mea <- function(data_in){
-    
-    data_in[which(is.na(data_in))] <- mea_na(data_in)
-    return(data_in)
-    
-  } 
-  
   emd_day <- apply(emd_day, 2, na2mea)
   
 }
 
 if(do_emd){
-  
-  #Function to do CEEMDAN and return residual
-  f_emd_resid <- function(data_in){
-    
-    my_emd <- Rlibeemd::ceemdan(input = data_in, ensemble_size = my_enseble_size, noise_strength = my_noise_strength)
-    emd_out <- my_emd[, ncol(my_emd)]
-    
-    if(length(emd_out) < 1){
-      emd_out <- rep(NA, length(data_in))
-    }
-    
-    return(emd_out)
-  }
   
   emd_resid <- foreach::foreach(i = 1:ncol(emd_day), .combine = 'cbind') %dopar% {
     
@@ -497,45 +477,7 @@ if(do_scale_emd){
 
 #CEEMDAN_visu----
 
-x_axis_lab <- c(16,46,74,105,135,166,196,227,258,288,319,349)
-x_axis_tic <- c(   46,74,105,135,166,196,227,258,288,319,349)-15
-
-par(mar = c(1.6, 3, 0.6, 0))
-
-layout(matrix(c(1,1,1,1,1,1,1,2),
-              1, 8), widths=c(), heights=c())
-
-n_max <- round(abs(max_na(emd_resid[, ])) / (max_na(emd_resid[, ]) + abs(min_na(emd_resid[, ]))), digits = 2) * 200
-n_min <- 200 - n_max
-cols_max <- grDevices::colorRampPalette(c("white", "cadetblue3", viridis::viridis(9, direction = 1)[c(4:1, 1)]))(n_max)
-cols_min <- grDevices::colorRampPalette(c("orangered4", "orangered3", "orange2", "gold2", "yellow2", "white"))(n_min)
-
-cols_emd <- c(cols_min, cols_max)
-
-brea_emd <- c(seq(min_na(emd_resid), max_na(emd_resid),length.out = length(cols_emd)+1))
-
-
-image(x = 1:365,
-      y = sta_yea_emd:end_yea_emd,
-      z = t(emd_resid), 
-      col    = cols_emd, 
-      breaks = brea_emd,
-      ylab = "", xlab = "", axes = F)
-axis(1, at = x_axis_tic, c("","","","","","","","","","",""), tick = TRUE,
-     col = "black", col.axis = "black", tck = -0.06)#plot ticks
-axis(1, at = x_axis_lab, c("J","F","M","A","M","J","J","A","S","O","N","D"), tick = FALSE,
-     col="black", col.axis="black", mgp=c(3, 0.15, 0))#plot labels
-mtext("Year", side = 2, line = 1.5, cex = 0.8)
-axis(2, mgp=c(3, 0.15, 0), tck = -0.01)
-box()
-
-par(mar = c(1.6, 0.5, 0.6, 2.7))
-
-image_scale(as.matrix(emd_resid), col = cols_emd, breaks = brea_emd, horiz=F, ylab="", xlab="", yaxt="n", axes=F)
-axis(4, mgp=c(3, 0.15, 0), tck = -0.08)
-mtext("CEEMDAN residual (scaled)", side = 4, line = 1.5, cex = 0.8)
-
-box()
+plot_emd_val(emd_resid, n_iso = 8)
 
 
 
